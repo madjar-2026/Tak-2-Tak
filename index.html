@@ -15,8 +15,12 @@ button{display:block;width:100%;max-width:400px;margin:15px auto;padding:18px;bo
 <body>
 <h1>Так-2-Так</h1>
 <p>Глобальне інформаційне бюро нового покоління</p>
-<button class="a">Зареєструватися</button>
+<button class="a" id="registerBtn">Зареєструватися</button>
 <button>Пропозиція</button>
-<button>Попит</button>
-</body>
-</html>
+<button>Попит</button> <script>
+document.getElementById("registerBtn").onclick = function() {
+  alert("Реєстрація працює!");
+};
+</script> </body>  
+</html> 
+
