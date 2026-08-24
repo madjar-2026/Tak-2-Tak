@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827">
+<title>Так-2-Так</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#17202a}
+.app{max-width:680px;margin:auto;padding:18px}.head{text-align:center;padding:24px 10px}
+.logo{font-size:38px;font-weight:800}.sub{color:#667085;margin-top:8px}.card{background:#fff;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 5px 20px #00000012}
+button{width:100%;padding:17px;margin:8px 0;border:0;border-radius:14px;font-size:18px;font-weight:700;cursor:pointer}
+.primary{background:#1677ff;color:white}.green{background:#159447;color:white}.orange{background:#f59e0b;color:white}.ghost{background:#eef2f6;color:#17202a}
+input,textarea,select{width:100%;padding:14px;margin:6px 0 12px;border:1px solid #ccd3dc;border-radius:12px;font-size:16px}
+textarea{min-height:110px}.screen{display:none}.screen.active{display:block}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.badge{display:inline-block;background:#e8f1ff;color:#1465c0;border-radius:20px;padding:7px 12px;font-weight:700}
+.small{font-size:13px;color:#667085}.top{display:flex;justify-content:space-between;align-items:center}.top button{width:auto;padding:9px 12px;font-size:14px}
+.result{padding:13px;background:#f7f9fb;border-radius:12px;margin:8px 0}.ok{color:#16833d;font-weight:700}
+@media(max-width:480px){.row{grid-template-columns:1fr}.logo{font-size:32px}}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="head"><div class="logo">Так-2-Так</div><div class="sub">Всесвітнє інформаційне бюро</div></div>
+
+<section id="home" class="screen active">
+<div class="card">
+<div class="top"><span class="badge">Учасників: <span id="people">0</span></span><span class="small">1 сесія = 1 копійка</span></div>
+<button class="primary" onclick="go('register')">Зареєструватися</button>
+<button class="green" onclick="needAccount('offer')">Пропозиція</button>
+<button class="orange" onclick="needAccount('demand')">Попит</button>
+<button class="ghost" onclick="go('info')">Як це працює</button>
+</div>
+</section>
+
+<section id="register" class="screen"><div class="card">
+<h2>Реєстрація</h2>
+<p class="small">Реєстрація потрібна для перевірки учасників, пропозицій та добросовісності сторін.</p>
+<input id="surname" placeholder="Прізвище *"><input id="name" placeholder="Ім’я *"><input id="middle" placeholder="По батькові">
+<input id="country" placeholder="Країна *"><input id="city" placeholder="Область / місто *"><input id="phone" type="tel" placeholder="Телефон *">
+<label><input id="terms" type="checkbox" style="width:auto"> Погоджуюся: одна сесія — 1 копійка, максимум 24 години.</label>
+<button class="primary" onclick="register()">Зареєструватися</button><button class="ghost" onclick="go('home')">Назад</button>
+</div></section>
+
+<section id="demand" class="screen"><div class="card">
+<h2>Попит</h2><input id="dtitle" placeholder="Що вам потрібно?"><textarea id="ddesc" placeholder="Опишіть товар, послугу або інформацію"></textarea>
+<div class="row"><input id="dplace" placeholder="Місто / район"><input id="dtime" placeholder="Коли потрібно?"></div>
+<button class="orange" onclick="saveDemand()">Створити запит</button><button class="ghost" onclick="go('home')">Назад</button>
+<div id="dresult"></div>
+</div></section>
+
+<section id="offer" class="screen"><div class="card">
+<h2>Пропозиція</h2><input id="otitle" placeholder="Що ви пропонуєте?"><textarea id="odesc" placeholder="Опишіть пропозицію"></textarea>
+<div class="row"><input id="oprice" placeholder="Ціна"><input id="oplace" placeholder="Місто / район"></div>
+<button class="green" onclick="saveOffer()">Додати пропозицію</button><button class="ghost" onclick="go('home')">Назад</button>
+<div id="oresult"></div>
+</div></section>
+
+<section id="info" class="screen"><div class="card">
+<h2>Як працює Так-2-Так</h2>
+<p>Людина створює <b>Попит</b>, а виробник, продавець або виконавець створює <b>Пропозицію</b>. Система має відбирати найрелевантніші варіанти за ціною, якістю, відстанню, швидкістю та рейтингом.</p>
+<p><b>Правило:</b> коли є щонайменше три реальні варіанти — показуємо 3 найкращі.</p>
+<p><b>Оплата:</b> лише 1 копійка за сесію. Без відсотка з угоди та без прихованої комісії за угоду.</p>
+<button class="ghost" onclick="go('home')">Назад</button>
+</div></section>
+</div>
+
+<script>
+const screens=[...document.querySelectorAll('.screen')];
+function go(id){screens.forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');scrollTo(0,0)}
+function user(){try{return JSON.parse(localStorage.getItem('tak2tak_user')||'null')}catch(e){return null}}
+function needAccount(id){if(!user()){alert('Спочатку коротка реєстрація — для перевірки учасників і чесності системи.');go('register')}else go(id)}
+function updateCounter(){document.getElementById('people').textContent=localStorage.getItem('tak2tak_count')||'0'}
+function register(){
+ const vals=['surname','name','country','city','phone'].map(id=>document.getElementById(id).value.trim());
+ if(vals.some(v=>!v)){alert('Заповніть обов’язкові поля.');return}
+ if(!document.getElementById('terms').checked){alert('Потрібно погодитися з правилами сесії.');return}
+ const u={surname:vals[0],name:vals[1],middle:middle.value.trim(),country:vals[2],city:vals[3],phone:vals[4],created:new Date().toISOString()};
+ localStorage.setItem('tak2tak_user',JSON.stringify(u));
+ if(!localStorage.getItem('tak2tak_registered_here')){let c=parseInt(localStorage.getItem('tak2tak_count')||'0')+1;localStorage.setItem('tak2tak_count',c);localStorage.setItem('tak2tak_registered_here','1')}
+ updateCounter();alert('Реєстрацію збережено на цьому телефоні.');go('home')
+}
+function saveDemand(){
+ if(!dtitle.value.trim()){alert('Напишіть, що вам потрібно.');return}
+ const x={title:dtitle.value.trim(),description:ddesc.value.trim(),place:dplace.value.trim(),time:dtime.value.trim(),created:new Date().toISOString()};
+ localStorage.setItem('tak2tak_demand',JSON.stringify(x));dresult.innerHTML='<div class="result ok">✓ Запит створено на цьому телефоні.</div>'
+}
+function saveOffer(){
+ if(!otitle.value.trim()){alert('Напишіть, що ви пропонуєте.');return}
+ const x={title:otitle.value.trim(),description:odesc.value.trim(),price:oprice.value.trim(),place:oplace.value.trim(),created:new Date().toISOString()};
+ localStorage.setItem('tak2tak_offer',JSON.stringify(x));oresult.innerHTML='<div class="result ok">✓ Пропозицію створено на цьому телефоні.</div>'
+}
+updateCounter();
+</script>
+</body></html>
