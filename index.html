@@ -18,7 +18,7 @@
       <div id="cloudState" class="counter">● Підключення…</div>
       <div id="peopleCounter" class="counter">Учасники: 0</div>
       <select id="uiLang" class="mini outline" aria-label="Мова" onchange="setUILanguage(this.value)">
-        <option value="auto">🌐 Auto</option><option value="uk-UA">UA</option><option value="en-US">EN</option><option value="pl-PL">PL</option><option value="de-DE">DE</option><option value="fr-FR">FR</option><option value="es-ES">ES</option>
+        <option value="auto">🌐 Auto</option><option value="uk-UA">Українська</option><option value="en-US">English</option><option value="zh-CN">简体中文</option><option value="zh-TW">繁體中文</option>
       </select>
       <button class="mini outline" onclick="nav('settings')" aria-label="Налаштування">⚙</button>
     </div>
@@ -103,7 +103,7 @@
       <button type="button" class="outline compact" onclick="captureDemandLocation()">📍 Використати моє місце для близькості</button><div id="dGeoStatus" class="status"></div>
       <div class="grid"><div><label>Бюджет від</label><input id="dMin" type="number" min="0"></div><div><label>Бюджет до</label><input id="dMax" type="number" min="0"></div></div>
       <div class="grid"><div><label>Коли потрібно</label><select id="dWhen"><option>Якнайшвидше</option><option>До 30 хвилин</option><option>До 1 години</option><option>Сьогодні</option><option>Завтра</option><option>Інший термін</option></select></div><div><label>Пріоритет</label><select id="dPriority"><option value="balance">Баланс</option><option value="price">Найнижча ціна</option><option value="speed">Найшвидше</option><option value="rating">Найвищий рейтинг</option><option value="distance">Найближче</option></select></div></div>
-      <button class="primary" onclick="createDemand()">Опублікувати попит</button><div id="dStatus" class="status"></div><button class="outline" onclick="nav('market')">Дивитися відповіді</button><button class="outline" onclick="nav('home')">← На головну</button>
+      <button class="primary" onclick="createDemand()">Знайти + опублікувати попит</button><div id="dStatus" class="status"></div><div class="small">Під час публікації ядро також звертається до реально підключених відкритих джерел. Якщо джерело недоступне або не підключене — програма так і покаже, без вигаданих результатів.</div><button class="outline" onclick="nav('market')">Дивитися відповіді</button><button class="outline" onclick="nav('home')">← На головну</button>
     </div>
   </section>
 
@@ -137,18 +137,18 @@
 
   <section id="about" class="screen">
     <h2>Як працює Так-2-Так</h2>
-    <div class="card"><p><b>Мета:</b> не забирати час людини, а повертати його. Один голосовий або текстовий запит — система робить інформаційну роботу.</p><div class="sep"></div><p><b>Ядро:</b> розуміє намір → враховує географію → збирає доступні дані → відсіює нерелевантне → порівнює → показує до 3 найкращих реальних варіантів.</p><p><b>Чесність:</b> якщо факт не перевірено — система не називає його перевіреним. Якщо реальних варіантів менше трьох — показує стільки, скільки є. Якщо немає — чесно каже «немає».</p><p><b>Зовнішні реєстри/API:</b> вони не «магічно підключені». Кожне реальне джерело підключається окремо через відкритий доступ або офіційний API/угоду.</p></div><button class="outline" onclick="nav('home')">← На головну</button>
+    <div class="card"><p><b>Мета:</b> не забирати час людини, а повертати його. Один голосовий або текстовий запит — система робить інформаційну роботу.</p><div class="sep"></div><p><b>Ядро:</b> розуміє намір → враховує географію → збирає доступні дані → відсіює нерелевантне → порівнює → показує до 3 найкращих реальних варіантів.</p><p><b>Чесність:</b> якщо факт не перевірено — система не називає його перевіреним. Якщо реальних варіантів менше трьох — показує стільки, скільки є. Якщо немає — чесно каже «немає».</p><p><b>Мови:</b> українська, English, 简体中文 та 繁體中文 мають вбудовані пакети інтерфейсу й голосу. Ядро також розпізнає багатомовні ключові наміри; нові мовні пакети додаються без зміни логіки попиту/пропозиції.</p><p><b>Зовнішні системи:</b> ядро паралельно звертається до підключених відкритих джерел і до власної бази. Банківські рахунки, платежі та закриті комерційні системи підключаються тільки через законну авторизацію, згоду користувача, офіційний API/угоду і захищений backend. Нічого не імітується.</p></div><button class="outline" onclick="nav('home')">← На головну</button>
   </section>
 
   <section id="settings" class="screen">
     <h2>Стан системи</h2>
     <div class="card"><h3>Хмара</h3><div class="item"><b>Firebase Authentication</b><div class="small">Акаунти користувачів.</div></div><div class="item"><b>Firebase Realtime Database</b><div class="small">Попити, пропозиції, відповіді, сесії та постійні сповіщення.</div></div><div class="status goodtxt">Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.</div></div>
     <div class="card"><h3>Зовнішні джерела</h3><div id="connectorList"></div></div>
-    <div class="card"><h3>Що навмисно НЕ імітуємо</h3><div class="notice warn">Реальний платіж 1 копійки, державна/комерційна перевірка через реєстри, секретні API та push при закритому браузері потребують платіжного провайдера, backend/API або service worker. У пілоті це позначено чесно, а не видається за готову функцію.</div></div>
+    <div class="card"><h3>Чесна межа підключення</h3><div class="notice warn">Відкриті джерела без секретів можна підключати безпосередньо. Доступ до банківських рахунків, ініціювання платежів, закриті маркетплейси, приватні реєстри та інші системи з секретними ключами НЕ можна безпечно вшивати у публічний index.html. Для них у ядрі є захищений шлюз-адаптер; фактичне підключення вимагає авторизації/договору/ключів і backend. Статус «працює» не показується, доки реальний доступ не підтверджено.</div></div>
     <button class="outline" onclick="nav('home')">← На головну</button>
   </section>
 
-  <div class="footer">Так-2-Так • pilot 3.0 • один index.html • хмарний двотелефонний сценарій • 1 копійка за сесію (поки тестовий облік)</div>
+  <div class="footer">Так-2-Так • v6.0 Global Language Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію</div>
 </div>
 <div id="toast" class="toast"></div>
 
@@ -157,21 +157,74 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 'use strict';
-const APP_VERSION='4.0.0-trust-core';
+const APP_VERSION='6.0.0-global-language-core';
 const FIREBASE_CONFIG={"apiKey":"AIzaSyB3hxK1s5IjK0uS593hykwL67_aVuxbMYk","authDomain":"tak-2-tak.firebaseapp.com","databaseURL":"https://tak-2-tak-default-rtdb.firebaseio.com","projectId":"tak-2-tak","storageBucket":"tak-2-tak.firebasestorage.app","messagingSenderId":"757950948500","appId":"1:757950948500:web:306180f7af4af956e84081","measurementId":"G-QGVXJN4PZH"};
+/* ===== Global language core =====
+   UI packs currently verified in code: Ukrainian, English, Simplified Chinese, Traditional Chinese.
+   User requests are additionally understood by multilingual keyword normalization.
+*/
+const LANG_META={
+  'uk-UA':{name:'Українська',speech:'uk-UA'},
+  'en-US':{name:'English',speech:'en-US'},
+  'zh-CN':{name:'简体中文',speech:'zh-CN'},
+  'zh-TW':{name:'繁體中文',speech:'zh-TW'}
+};
+const I18N={
+'en-US':{
+'Так-2-Так':'Tak-2-Tak','● Підключення…':'● Connecting…','Учасники: 0':'Participants: 0','🎤 Скажіть, що вам потрібно':'🎤 Tell us what you need','Продовжити':'Continue','Скасувати':'Cancel','Зареєструватися':'Register','Пропозиція':'Offer','Попит':'Demand','зареєстрованих':'registered','найкращих реальних варіантів':'best real options','за одну сесію до 24 год.':'per session up to 24h','Увійти':'Sign in','Мій профіль':'My profile','Як працює система':'How the system works','Коротка реєстрація':'Quick registration','🎤 Заповнити основні дані голосом':'🎤 Fill basic data by voice','Прізвище *':'Last name *','Ім\'я *':'First name *','По батькові':'Middle name','Країна *':'Country *','Область / регіон *':'Region / state *','Місто / населений пункт *':'City / locality *','Район / приблизне місце':'District / approximate area','📍 Додати приблизну геолокацію':'📍 Add approximate location','Номер телефону *':'Phone number *','Email *':'Email *','Пароль *':'Password *','Повторіть пароль *':'Repeat password *','Основна роль':'Main role','І замовник, і виконавець':'Both customer and provider','Замовник / покупець':'Customer / buyer','Продавець / виконавець / виробник':'Seller / provider / manufacturer','Створити акаунт':'Create account','У мене вже є акаунт':'I already have an account','← На головну':'← Home','Вхід':'Sign in','Email':'Email','Пароль':'Password','Мої сесії':'My sessions','Мої запити':'My requests','Сповіщення':'Notifications','Сповіщень ще немає.':'No notifications yet.','Позначити прочитаними':'Mark as read','Увімкнути сповіщення браузера':'Enable browser notifications','Вийти':'Sign out','Створити попит':'Create demand','Створити пропозицію':'Create offer','Що потрібно? *':'What do you need? *','Купити товар':'Buy a product','Замовити послугу':'Order a service','Доставка / логістика':'Delivery / logistics','Знайти інформацію':'Find information','Відпочинок / подорож':'Travel / leisure','Поговорити':'Talk','Інше':'Other','Категорія *':'Category *','Опишіть потребу *':'Describe your need *','🎤 Сказати голосом':'🎤 Speak','🔊 Прослухати':'🔊 Listen','Місто *':'City *','📍 Використати моє місце для близькості':'📍 Use my location for nearby results','Бюджет від':'Budget from','Бюджет до':'Budget to','Коли потрібно':'When needed','Якнайшвидше':'As soon as possible','До 30 хвилин':'Within 30 minutes','До 1 години':'Within 1 hour','Сьогодні':'Today','Завтра':'Tomorrow','Інший термін':'Other time','Пріоритет':'Priority','Баланс':'Balance','Найнижча ціна':'Lowest price','Найшвидше':'Fastest','Найвищий рейтинг':'Highest rating','Найближче':'Nearest','Знайти + опублікувати попит':'Search + publish demand','Дивитися відповіді':'View responses','Живі попити поруч':'Live nearby demand','Моя загальна пропозиція':'My general offer','Тип':'Type','Продам товар':'Sell a product','Надам послугу':'Provide a service','Виробник':'Manufacturer','Назва *':'Title *','Опис *':'Description *','Адреса виробництва / точки надання':'Production / service location','📍 Додати геолокацію точки':'📍 Add location','Ціна *':'Price *','Валюта':'Currency','Швидкість / термін':'Speed / time','Наявність':'Availability','Є зараз':'Available now','Під замовлення':'Made to order','За домовленістю':'By agreement','Опублікувати пропозицію':'Publish offer','Відповісти на попит':'Respond to demand','Ваша ціна *':'Your price *','Час виконання, хвилин *':'Completion time, minutes *','Коротка пропозиція *':'Short offer *','Надіслати пропозицію':'Send offer','← Назад до попитів':'← Back to demand','Мої результати':'My results','Як працює Так-2-Так':'How Tak-2-Tak works','Стан системи':'System status','Хмара':'Cloud','Акаунти користувачів.':'User accounts.','Попити, пропозиції, відповіді, сесії та постійні сповіщення.':'Demand, offers, responses, sessions and persistent notifications.','Зовнішні джерела':'External sources','Чесна межа підключення':'Honest connection boundary'},
+'zh-CN':{
+'Так-2-Так':'Tak-2-Tak','● Підключення…':'● 连接中…','Учасники: 0':'用户：0','🎤 Скажіть, що вам потрібно':'🎤 告诉我们您需要什么','Продовжити':'继续','Скасувати':'取消','Зареєструватися':'注册','Пропозиція':'供给','Попит':'需求','зареєстрованих':'已注册','найкращих реальних варіантів':'最佳真实选项','за одну сесію до 24 год.':'每次会话最长24小时','Увійти':'登录','Мій профіль':'我的资料','Як працює система':'系统如何工作','Коротка реєстрація':'快速注册','🎤 Заповнити основні дані голосом':'🎤 用语音填写基本资料','Прізвище *':'姓 *','Ім\'я *':'名 *','По батькові':'父称/中间名','Країна *':'国家 *','Область / регіон *':'省/地区 *','Місто / населений пункт *':'城市/地点 *','Район / приблизне місце':'区域/大致位置','📍 Додати приблизну геолокацію':'📍 添加大致位置','Номер телефону *':'电话号码 *','Email *':'电子邮箱 *','Пароль *':'密码 *','Повторіть пароль *':'重复密码 *','Основна роль':'主要角色','І замовник, і виконавець':'买方和供方','Замовник / покупець':'客户 / 买家','Продавець / виконавець / виробник':'卖家 / 服务商 / 制造商','Створити акаунт':'创建账户','У мене вже є акаунт':'我已有账户','← На головну':'← 首页','Вхід':'登录','Email':'电子邮箱','Пароль':'密码','Мої сесії':'我的会话','Мої запити':'我的请求','Сповіщення':'通知','Сповіщень ще немає.':'暂无通知。','Позначити прочитаними':'标记为已读','Увімкнути сповіщення браузера':'启用浏览器通知','Вийти':'退出','Створити попит':'创建需求','Створити пропозицію':'创建供给','Що потрібно? *':'您需要什么？ *','Купити товар':'购买商品','Замовити послугу':'订购服务','Доставка / логістика':'配送 / 物流','Знайти інформацію':'查找信息','Відпочинок / подорож':'旅行 / 休闲','Поговорити':'聊一聊','Інше':'其他','Категорія *':'类别 *','Опишіть потребу *':'描述您的需求 *','🎤 Сказати голосом':'🎤 语音输入','🔊 Прослухати':'🔊 播放','Місто *':'城市 *','📍 Використати моє місце для близькості':'📍 使用我的位置查找附近结果','Бюджет від':'最低预算','Бюджет до':'最高预算','Коли потрібно':'需要时间','Якнайшвидше':'尽快','До 30 хвилин':'30分钟内','До 1 години':'1小时内','Сьогодні':'今天','Завтра':'明天','Інший термін':'其他时间','Пріоритет':'优先级','Баланс':'综合平衡','Найнижча ціна':'最低价格','Найшвидше':'最快','Найвищий рейтинг':'最高评分','Найближче':'最近','Знайти + опублікувати попит':'搜索 + 发布需求','Дивитися відповіді':'查看回应','Живі попити поруч':'附近实时需求','Моя загальна пропозиція':'我的通用供给','Тип':'类型','Продам товар':'出售商品','Надам послугу':'提供服务','Виробник':'制造商','Назва *':'名称 *','Опис *':'描述 *','Адреса виробництва / точки надання':'生产 / 服务地点','📍 Додати геолокацію точки':'📍 添加地点','Ціна *':'价格 *','Валюта':'货币','Швидкість / термін':'速度 / 时间','Наявність':'可用性','Є зараз':'现货','Під замовлення':'按订单提供','За домовленістю':'协商','Опублікувати пропозицію':'发布供给','Відповісти на попит':'回应需求','Ваша ціна *':'您的价格 *','Час виконання, хвилин *':'完成时间（分钟） *','Коротка пропозиція *':'简短供给说明 *','Надіслати пропозицію':'发送供给','← Назад до попитів':'← 返回需求','Мої результати':'我的结果','Як працює Так-2-Так':'Tak-2-Tak 如何工作','Стан системи':'系统状态','Хмара':'云端','Акаунти користувачів.':'用户账户。','Попити, пропозиції, відповіді, сесії та постійні сповіщення.':'需求、供给、回应、会话和持续通知。','Зовнішні джерела':'外部数据源','Чесна межа підключення':'真实连接边界'},
+'zh-TW':{
+'Так-2-Так':'Tak-2-Tak','● Підключення…':'● 連線中…','Учасники: 0':'使用者：0','🎤 Скажіть, що вам потрібно':'🎤 告訴我們您需要什麼','Продовжити':'繼續','Скасувати':'取消','Зареєструватися':'註冊','Пропозиція':'供給','Попит':'需求','зареєстрованих':'已註冊','найкращих реальних варіантів':'最佳真實選項','за одну сесію до 24 год.':'每次工作階段最長24小時','Увійти':'登入','Мій профіль':'我的資料','Як працює система':'系統如何運作','Коротка реєстрація':'快速註冊','🎤 Заповнити основні дані голосом':'🎤 用語音填寫基本資料','Прізвище *':'姓 *','Ім\'я *':'名 *','По батькові':'父稱/中間名','Країна *':'國家 *','Область / регіон *':'省/地區 *','Місто / населений пункт *':'城市/地點 *','Район / приблизне місце':'區域/大致位置','📍 Додати приблизну геолокацію':'📍 新增大致位置','Номер телефону *':'電話號碼 *','Email *':'電子郵件 *','Пароль *':'密碼 *','Повторіть пароль *':'重複密碼 *','Основна роль':'主要角色','І замовник, і виконавець':'買方和供方','Замовник / покупець':'客戶 / 買家','Продавець / виконавець / виробник':'賣家 / 服務商 / 製造商','Створити акаунт':'建立帳戶','У мене вже є акаунт':'我已有帳戶','← На головну':'← 首頁','Вхід':'登入','Email':'電子郵件','Пароль':'密碼','Мої сесії':'我的工作階段','Мої запити':'我的請求','Сповіщення':'通知','Сповіщень ще немає.':'尚無通知。','Позначити прочитаними':'標記為已讀','Увімкнути сповіщення браузера':'啟用瀏覽器通知','Вийти':'登出','Створити попит':'建立需求','Створити пропозицію':'建立供給','Що потрібно? *':'您需要什麼？ *','Купити товар':'購買商品','Замовити послугу':'訂購服務','Доставка / логістика':'配送 / 物流','Знайти інформацію':'查找資訊','Відпочинок / подорож':'旅行 / 休閒','Поговорити':'聊一聊','Інше':'其他','Категорія *':'類別 *','Опишіть потребу *':'描述您的需求 *','🎤 Сказати голосом':'🎤 語音輸入','🔊 Прослухати':'🔊 播放','Місто *':'城市 *','📍 Використати моє місце для близькості':'📍 使用我的位置查找附近結果','Бюджет від':'最低預算','Бюджет до':'最高預算','Коли потрібно':'需要時間','Якнайшвидше':'盡快','До 30 хвилин':'30分鐘內','До 1 години':'1小時內','Сьогодні':'今天','Завтра':'明天','Інший термін':'其他時間','Пріоритет':'優先級','Баланс':'綜合平衡','Найнижча ціна':'最低價格','Найшвидше':'最快','Найвищий рейтинг':'最高評分','Найближче':'最近','Знайти + опублікувати попит':'搜尋 + 發布需求','Дивитися відповіді':'查看回應','Живі попити поруч':'附近即時需求','Моя загальна пропозиція':'我的通用供給','Тип':'類型','Продам товар':'出售商品','Надам послугу':'提供服務','Виробник':'製造商','Назва *':'名稱 *','Опис *':'描述 *','Адреса виробництва / точки надання':'生產 / 服務地點','📍 Додати геолокацію точки':'📍 新增地點','Ціна *':'價格 *','Валюта':'貨幣','Швидкість / термін':'速度 / 時間','Наявність':'可用性','Є зараз':'現貨','Під замовлення':'按訂單提供','За домовленістю':'協商','Опублікувати пропозицію':'發布供給','Відповісти на попит':'回應需求','Ваша ціна *':'您的價格 *','Час виконання, хвилин *':'完成時間（分鐘） *','Коротка пропозиція *':'簡短供給說明 *','Надіслати пропозицію':'傳送供給','← Назад до попитів':'← 返回需求','Мої результати':'我的結果','Як працює Так-2-Так':'Tak-2-Tak 如何運作','Стан системи':'系統狀態','Хмара':'雲端','Акаунти користувачів.':'使用者帳戶。','Попити, пропозиції, відповіді, сесії та постійні сповіщення.':'需求、供給、回應、工作階段和持續通知。','Зовнішні джерела':'外部資料來源','Чесна межа підключення':'真實連線邊界'}
+};
+const PLACEHOLDER_I18N={
+'en-US':{'Україна':'Ukraine','Без точної домашньої адреси':'Without exact home address','+380...':'+1 / +44 / +380...','Напр.: манікюр, квіти, холодильник':'e.g. manicure, flowers, refrigerator','Напр.: потрібен манікюр сьогодні після 18:00, недалеко від мене':'e.g. I need a manicure today after 18:00 near me','Опишіть пропозицію вручну або голосом':'Describe the offer by text or voice','Для перевірки, не обов\'язково показувати всім':'For verification; not necessarily public','30 хв, 1 день':'30 min, 1 day','Що саме ви зробите / доставите':'What exactly will you do / deliver'},
+'zh-CN':{'Україна':'乌克兰','Без точної домашньої адреси':'无需填写准确住址','+380...':'+86 / +380...','Напр.: манікюр, квіти, холодильник':'例如：美甲、鲜花、冰箱','Напр.: потрібен манікюр сьогодні після 18:00, недалеко від мене':'例如：今天18:00后附近需要美甲','Опишіть пропозицію вручну або голосом':'用文字或语音描述供给','Для перевірки, не обов\'язково показувати всім':'用于核验，不一定公开显示','30 хв, 1 день':'30分钟，1天','Що саме ви зробите / доставите':'您具体会做什么 / 配送什么'},
+'zh-TW':{'Україна':'烏克蘭','Без точної домашньої адреси':'不需填寫精確住址','+380...':'+886 / +380...','Напр.: манікюр, квіти, холодильник':'例如：美甲、鮮花、冰箱','Напр.: потрібен манікюр сьогодні після 18:00, недалеко від мене':'例如：今天18:00後附近需要美甲','Опишіть пропозицію вручну або голосом':'用文字或語音描述供給','Для перевірки, не обов\'язково показувати всім':'用於核驗，不一定公開顯示','30 хв, 1 день':'30分鐘，1天','Що саме ви зробите / доставите':'您具體會做什麼 / 配送什麼'}
+};
+let ACTIVE_LANG='uk-UA';
+function resolveUILang(v){
+  if(v&&v!=='auto'&&LANG_META[v])return v;
+  const n=(navigator.language||'uk-UA').toLowerCase();
+  if(n.startsWith('zh-tw')||n.startsWith('zh-hk')||n.startsWith('zh-hant'))return'zh-TW';
+  if(n.startsWith('zh'))return'zh-CN';
+  if(n.startsWith('en'))return'en-US';
+  return'uk-UA';
+}
+function uiText(s,lang=ACTIVE_LANG){return I18N[lang]?.[s]||s}
+function translateStaticUI(){
+  const lang=ACTIVE_LANG;
+  document.querySelectorAll('h1,h2,h3,button,label,option,.small,.footer').forEach(node=>{
+    if(node.closest('#connectorList,#marketList,#liveDemandList,#myDemands,#noticeBox,#sessionBox'))return;
+    if(!node.dataset.i18nSource)node.dataset.i18nSource=(node.textContent||'').trim();
+    const src=node.dataset.i18nSource;
+    if(src&&I18N[lang]?.[src])node.textContent=I18N[lang][src];
+    else if(src)node.textContent=src;
+  });
+  document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(node=>{
+    if(!node.dataset.phSource)node.dataset.phSource=node.getAttribute('placeholder')||'';
+    node.setAttribute('placeholder',PLACEHOLDER_I18N[lang]?.[node.dataset.phSource]||node.dataset.phSource);
+  });
+}
+
 const LS={users:'t2t_users_v3',offers:'t2t_offers_v3',demands:'t2t_demands_v3',responses:'t2t_responses_v3',sessions:'t2t_sessions_v3',notifications:'t2t_notifications_v3',current:'t2t_current_v3'};
 let MODE='local',FB=null,auth=null,db=null,currentUser=null,listeners=[],activeResponseDemandId=null,activeSessions={};
 let regCoords=null,demandCoords=null,offerCoords=null,pendingHomeVoice={text:'',intent:'demand'};
 const connectors=[
-  ['Власна база Так-2-Так','active'],
-  ['Firebase Realtime Database','active'],
-  ['Державні та відкриті реєстри','not-connected'],
-  ['Маркетплейси','not-connected'],
-  ['Карти / геокодування','not-connected'],
-  ['Логістика / доставка','not-connected'],
-  ['Готелі / подорожі','not-connected'],
-  ['Виробники / каталоги','not-connected'],
-  ['Відкритий веб-пошук','not-connected']
+  ['Багатомовне ядро UA / EN / 简体中文 / 繁體中文','implemented','Інтерфейс, голос, реєстраційний голосовий парсер і базове розуміння наміру; перевіряється на реальних пристроях.'],
+  ['Власна база Так-2-Так','active','Попит, пропозиція, відповіді, рейтинг.'],
+  ['Firebase Authentication / Realtime Database','active','Хмарні акаунти та дані Так-2-Так.'],
+  ['OpenStreetMap / Overpass','implemented','Реальний пошук місць поруч: АЗС, банки, банкомати, аптеки, лікарні, магазини, ресторани, готелі, сервіс, зарядки та інші POI.'],
+  ['Open-Meteo','implemented','Геокодування міста та погода без секретного ключа.'],
+  ['Wikimedia / Wikipedia','implemented','Відкрита довідкова інформація.'],
+  ['НБУ Open Data API','implemented','Офіційні курси валют та відкриті фінансові дані.'],
+  ['Crossref REST API','implemented','Відкриті наукові та бібліографічні метадані.'],
+  ['World Bank Indicators API','implemented','Відкриті міжнародні статистичні показники.'],
+  ['Open Library','implemented','Пошук книг та бібліографічної інформації.'],
+  ['Open Banking / рахунки банків','secure-required','Потрібні згода користувача, авторизація AISP/PISP, сертифікати та захищений backend.'],
+  ['Платіжні системи / еквайринг','secure-required','LiqPay/WayForPay/Stripe/PayPal та інші потребують договору/ключів; секрети не можна зберігати в публічному index.html.'],
+  ['Закриті маркетплейси / бронювання / доставка','agreement-required','Підключаються через офіційні API/угоди конкретних систем.'],
+  ['Державні та комерційні реєстри з авторизацією','agreement-required','Підключаються там, де є законний API, ліцензія або договір.']
 ];
 
 function el(id){return document.getElementById(id)}
@@ -248,28 +301,308 @@ async function createSession(area){const startedAt=now(),feeKopiyky=1;const pay=
 async function ensureValidSession(area){const s=activeSessions[area];if(s&&s.expiresAt>now())return s;const fresh=await createSession(area);toast('Нова сесія: тестовий облік 1 копійки, до 24 годин.');return fresh}
 async function renderMySessions(){let a=[];if(MODE==='cloud'){const s=await db.ref('sessions').orderByChild('uid').equalTo(currentUser.uid).once('value');s.forEach(c=>a.push(c.val()))}else a=jget(LS.sessions,[]).filter(x=>x.email===currentUser.email);a.sort((x,y)=>y.startedAt-x.startedAt);el('sessionBox').innerHTML=a.length?`Зафіксовано входів у сесії: <b>${a.length}</b> • тестовий облік: <b>${a.length} коп.</b><div class="small">Кожен вхід у функціональну сесію фіксується окремо. Реальне списання грошей у пілоті НЕ виконується.</div>`:'Сесій ще немає.'}
 
-function currentSpeechLang(){const v=el('uiLang')?.value||'auto';return v==='auto'?(navigator.language||'uk-UA'):v}
-function setUILanguage(v){localStorage.setItem('t2t_lang',v);document.documentElement.lang=(v==='auto'?(navigator.language||'uk').split('-')[0]:v.split('-')[0]);toast(v==='auto'?'Мова голосу: автоматично за браузером':'Мова голосу: '+v)}
-function restoreUILanguage(){const v=localStorage.getItem('t2t_lang')||'auto';el('uiLang').value=v;document.documentElement.lang=(v==='auto'?(navigator.language||'uk').split('-')[0]:v.split('-')[0])}
+function currentSpeechLang(){const v=el('uiLang')?.value||'auto';const lang=resolveUILang(v);return LANG_META[lang]?.speech||lang}
+function setUILanguage(v){localStorage.setItem('t2t_lang',v);ACTIVE_LANG=resolveUILang(v);document.documentElement.lang=ACTIVE_LANG;translateStaticUI();toast(v==='auto'?uiText('Мова голосу: автоматично за браузером'):LANG_META[ACTIVE_LANG]?.name||ACTIVE_LANG)}
+function restoreUILanguage(){let v=localStorage.getItem('t2t_lang')||'auto';if(v!=='auto'&&!LANG_META[v])v='auto';el('uiLang').value=v;ACTIVE_LANG=resolveUILang(v);document.documentElement.lang=ACTIVE_LANG;translateStaticUI()}
 function speakText(text){if(!text)return;if(!('speechSynthesis' in window)){toast('Озвучення не підтримується');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=currentSpeechLang();speechSynthesis.speak(u)}
 function speech(onText,statusId,buttonId){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){setStatus(statusId,'Цей браузер не підтримує голосове розпізнавання. Напишіть текст вручну.','bad');return}const r=new SR();r.lang=currentSpeechLang();r.interimResults=false;r.maxAlternatives=1;const b=el(buttonId);if(b)b.classList.add('listening');setStatus(statusId,'Слухаю… говоріть.');r.onresult=e=>onText(e.results?.[0]?.[0]?.transcript||'');r.onerror=e=>setStatus(statusId,'Не вдалося розпізнати голос: '+e.error,'bad');r.onend=()=>{if(b)b.classList.remove('listening')};try{r.start()}catch{if(b)b.classList.remove('listening');setStatus(statusId,'Мікрофон недоступний або вже активний.','bad')}}
-function detectHomeIntent(text){const s=norm(text);const words=['пропоную','продам','продаю','надам','надаю','можу виконати','можу зробити','виробляю','виготовляю','i offer','i sell','i can provide','sprzedam','oferuję','oferuje','ich biete','ich verkaufe','je propose','je vends','ofrezco','vendo'];return words.some(w=>s.includes(w))?'offer':'demand'}
+function detectHomeIntent(text){const s=norm(text);const words=['пропоную','продам','продаю','надам','надаю','можу виконати','можу зробити','виробляю','виготовляю','i offer','i sell','i can provide','i provide','for sale','出售','卖','賣','提供','供应','供應','我可以提供','sprzedam','oferuję','oferuje','ich biete','ich verkaufe','je propose','je vends','ofrezco','vendo'];return words.some(w=>s.includes(w))?'offer':'demand'}
 function startHomeVoice(){speech(t=>{pendingHomeVoice={text:t,intent:detectHomeIntent(t)};el('homeVoiceText').value=t;el('homeVoicePreview').classList.remove('hidden');setStatus('homeVoiceStatus',pendingHomeVoice.intent==='offer'?'Схоже на пропозицію. Перевірте текст.':'Схоже на попит. Перевірте текст.','good')},'homeVoiceStatus','homeVoiceBtn')}
 function clearHomeVoice(){pendingHomeVoice={text:'',intent:'demand'};el('homeVoiceText').value='';el('homeVoicePreview').classList.add('hidden');setStatus('homeVoiceStatus','')}
 async function continueHomeVoice(){const text=el('homeVoiceText').value.trim();if(!text){setStatus('homeVoiceStatus','Скажіть або напишіть текст.','bad');return}pendingHomeVoice={text,intent:detectHomeIntent(text)};localStorage.setItem('t2t_pending_voice',JSON.stringify(pendingHomeVoice));if(!currentUser){nav('register');setStatus('regVoiceStatus','Запит збережено. Завершіть коротку реєстрацію — після неї повернемося до нього.','good');return}await resumePendingVoice()}
 async function resumePendingVoice(){let p=pendingHomeVoice;try{const s=JSON.parse(localStorage.getItem('t2t_pending_voice')||'null');if(s?.text)p=s}catch{}if(!p?.text)return false;localStorage.removeItem('t2t_pending_voice');await createSession(p.intent==='offer'?'offer':'demand');prefillGeo();if(p.intent==='offer'){nav('offer');showOfferTab('new');inferOfferFromVoice(p.text)}else{nav('demand');inferDemandFromVoice(p.text)}toast('Перечитайте поля перед публікацією.');return true}
 function cleanSpokenValue(v){return String(v||'').replace(/^[:\-–—\s]+|[,.;\s]+$/g,'').trim()}
 function spokenField(text,labels,nextLabels){const lower=text.toLowerCase();let start=-1,used='';for(const label of labels){const i=lower.indexOf(label);if(i>=0&&(start<0||i<start)){start=i;used=label}}if(start<0)return '';start+=used.length;let end=text.length;for(const label of nextLabels){if(label===used)continue;const i=lower.indexOf(label,start);if(i>=0&&i<end)end=i}return cleanSpokenValue(text.slice(start,end))}
-function inferRegistrationFromVoice(t){const text=String(t||'').trim(),labels=['прізвище','фамілія','ім’я','ім\'я','імя','по батькові','країна','область','регіон','місто','населений пункт'],get=names=>spokenField(text,names,labels);const vals={rLast:get(['прізвище','фамілія']),rFirst:get(['ім’я','ім\'я','імя']),rMiddle:get(['по батькові']),rCountry:get(['країна']),rRegion:get(['область','регіон']),rCity:get(['місто','населений пункт'])};let n=0;for(const [id,v] of Object.entries(vals)){if(v){el(id).value=v;n++}}setStatus('regVoiceStatus',n?'Голос розпізнано. Перечитайте поля.':'Не вдалося розкласти по полях. Називайте: прізвище, ім’я, країна, область, місто.',n?'good':'bad')}
+function inferRegistrationFromVoice(t){
+  const text=String(t||'').trim();
+  const labels=['прізвище','фамілія','ім’я','ім\'я','імя','по батькові','країна','область','регіон','місто','населений пункт','last name','surname','first name','name','middle name','country','region','state','city','姓','名字','名','国家','國家','省','地区','地區','城市'];
+  const get=names=>spokenField(text,names,labels);
+  const vals={
+    rLast:get(['прізвище','фамілія','last name','surname','姓']),
+    rFirst:get(['ім’я','ім\'я','імя','first name','name','名字','名']),
+    rMiddle:get(['по батькові','middle name']),
+    rCountry:get(['країна','country','国家','國家']),
+    rRegion:get(['область','регіон','region','state','省','地区','地區']),
+    rCity:get(['місто','населений пункт','city','城市'])
+  };
+  let n=0;for(const [id,v] of Object.entries(vals)){if(v){el(id).value=v;n++}}
+  setStatus('regVoiceStatus',n?'Голос розпізнано. Перечитайте поля.':'Не вдалося розкласти по полях. Називайте основні поля по черзі.',n?'good':'bad')
+}
 function startVoiceRegistration(){speech(inferRegistrationFromVoice,'regVoiceStatus','regVoiceBtn')}
-function inferTypeCategory(text,mode){const s=norm(text);let type='other',category='Інше';if(/відпоч|подорож|готел|ресторан|кафе/.test(s)){type=mode==='demand'?'travel':'service';category='Відпочинок / подорож'}else if(/достав|кур'єр|кур’єр|таксі|логіст/.test(s)){type='delivery';category='Доставка / логістика'}else if(/манікюр/.test(s)){type='service';category='Манікюр'}else if(/перукар|масаж|ремонт|послуг/.test(s)){type='service';category='Послуга'}else if(/квіти/.test(s)){type='product';category='Квіти'}else if(/холодильник/.test(s)){type='product';category='Холодильник'}else if(/телефон|купити|продам|товар/.test(s)){type='product';category='Товар'}else if(/інформац|довід|знайди|хто такий|що таке/.test(s)){type='info';category='Інформація'}else if(/поговорити|послухай мене/.test(s)){type='talk';category='Поговорити'}return{type,category}}
-function inferDemandFromVoice(t){const {type,category}=inferTypeCategory(t,'demand');el('dType').value=[...el('dType').options].some(o=>o.value===type)?type:'other';el('dCategory').value=category;el('dText').value=t;if(currentUser){if(!el('dCountry').value)el('dCountry').value=currentUser.country||'';if(!el('dRegion').value)el('dRegion').value=currentUser.region||'';if(!el('dCity').value)el('dCity').value=currentUser.city||''}const s=norm(t);if(/до\s*30\s*хв|за\s*30\s*хв/.test(s))el('dWhen').value='До 30 хвилин';else if(/до\s*1\s*год|за\s*годин/.test(s))el('dWhen').value='До 1 години';else if(/сьогодні/.test(s))el('dWhen').value='Сьогодні';else if(/завтра/.test(s))el('dWhen').value='Завтра';const money=s.match(/(?:до|бюджет)\s*(\d+(?:[.,]\d+)?)/);if(money&&!el('dMax').value)el('dMax').value=money[1].replace(',','.');setStatus('voiceStatus','Голос розпізнано. Перечитайте поля і лише потім публікуйте.','good')}
+function inferTypeCategory(text,mode){
+  const s=norm(text);let type='other',category='Інше';
+  if(/відпоч|подорож|готел|ресторан|кафе|travel|trip|hotel|restaurant|vacation|旅游|旅行|酒店|飯店|饭店|餐厅|餐廳/.test(s)){type=mode==='demand'?'travel':'service';category='Відпочинок / подорож'}
+  else if(/достав|кур'єр|кур’єр|таксі|логіст|delivery|courier|taxi|logistic|配送|快递|快遞|物流|出租车|計程車/.test(s)){type='delivery';category='Доставка / логістика'}
+  else if(/манікюр|manicure|美甲/.test(s)){type='service';category='Манікюр'}
+  else if(/перукар|масаж|ремонт|послуг|service|repair|massage|hairdresser|服务|服務|维修|維修|按摩|理发|理髮/.test(s)){type='service';category='Послуга'}
+  else if(/квіти|flowers?|鲜花|鮮花/.test(s)){type='product';category='Квіти'}
+  else if(/холодильник|refrigerator|fridge|冰箱/.test(s)){type='product';category='Холодильник'}
+  else if(/телефон|купити|продам|товар|buy|sell|product|phone|购买|購買|买|買|出售|商品|产品|產品|手机|手機/.test(s)){type='product';category='Товар'}
+  else if(/інформац|довід|знайди|хто такий|що таке|information|find|who is|what is|信息|資訊|查找|寻找|尋找|是什么|是什麼/.test(s)){type='info';category='Інформація'}
+  else if(/поговорити|послухай мене|talk|listen to me|聊天|聊聊|聽我說|听我说/.test(s)){type='talk';category='Поговорити'}
+  return{type,category}
+}
+function inferDemandFromVoice(t){const {type,category}=inferTypeCategory(t,'demand');el('dType').value=[...el('dType').options].some(o=>o.value===type)?type:'other';el('dCategory').value=category;el('dText').value=t;if(currentUser){if(!el('dCountry').value)el('dCountry').value=currentUser.country||'';if(!el('dRegion').value)el('dRegion').value=currentUser.region||'';if(!el('dCity').value)el('dCity').value=currentUser.city||''}const s=norm(t);if(/до\s*30\s*хв|за\s*30\s*хв|within 30 minutes|30分钟|30分鐘/.test(s))el('dWhen').value='До 30 хвилин';else if(/до\s*1\s*год|за\s*годин|within 1 hour|1 hour|1小时|1小時/.test(s))el('dWhen').value='До 1 години';else if(/сьогодні|today|今天/.test(s))el('dWhen').value='Сьогодні';else if(/завтра|tomorrow|明天/.test(s))el('dWhen').value='Завтра';const money=s.match(/(?:до|бюджет|budget|预算|預算)\s*(\d+(?:[.,]\d+)?)/);if(money&&!el('dMax').value)el('dMax').value=money[1].replace(',','.');setStatus('voiceStatus','Голос розпізнано. Перечитайте поля і лише потім публікуйте.','good')}
 function startVoiceDemand(){speech(inferDemandFromVoice,'voiceStatus','dVoiceBtn')}
-function inferOfferFromVoice(t){const {type,category}=inferTypeCategory(t,'offer');el('oType').value=[...el('oType').options].some(o=>o.value===type)?type:'other';el('oCategory').value=category;el('oTitle').value=category==='Інше'?'Пропозиція':category;el('oText').value=t;if(currentUser){if(!el('oCountry').value)el('oCountry').value=currentUser.country||'';if(!el('oRegion').value)el('oRegion').value=currentUser.region||'';if(!el('oCity').value)el('oCity').value=currentUser.city||''}const m=norm(t).match(/(\d+(?:[.,]\d+)?)\s*(грн|uah|євро|eur|долар|usd)/);if(m&&!el('oPrice').value)el('oPrice').value=m[1].replace(',','.');setStatus('offerVoiceStatus','Голос розпізнано. Перечитайте поля перед публікацією.','good')}
+function inferOfferFromVoice(t){const {type,category}=inferTypeCategory(t,'offer');el('oType').value=[...el('oType').options].some(o=>o.value===type)?type:'other';el('oCategory').value=category;el('oTitle').value=category==='Інше'?'Пропозиція':category;el('oText').value=t;if(currentUser){if(!el('oCountry').value)el('oCountry').value=currentUser.country||'';if(!el('oRegion').value)el('oRegion').value=currentUser.region||'';if(!el('oCity').value)el('oCity').value=currentUser.city||''}const m=norm(t).match(/(\d+(?:[.,]\d+)?)\s*(грн|uah|євро|eur|долар|usd|美元|欧元|歐元|人民币|人民幣|cny|rmb)/);if(m&&!el('oPrice').value)el('oPrice').value=m[1].replace(',','.');setStatus('offerVoiceStatus','Голос розпізнано. Перечитайте поля перед публікацією.','good')}
 function startVoiceOffer(){speech(inferOfferFromVoice,'offerVoiceStatus','oVoiceBtn')}
 function startVoiceResponse(){speech(t=>{el('respComment').value=t;const s=norm(t),m=s.match(/(\d+(?:[.,]\d+)?)\s*(грн|uah)/);if(m&&!el('respPrice').value)el('respPrice').value=m[1].replace(',','.');const tm=s.match(/(\d+)\s*(хв|хвилин)/);if(tm&&!el('respMinutes').value)el('respMinutes').value=tm[1];setStatus('respVoiceStatus','Розпізнано. Перевірте ціну, час і текст.','good')},'respVoiceStatus','respVoiceBtn')}
 
-async function createDemand(){if(!requireUser())return;await ensureValidSession('demand');const x={ownerUid:currentUser.uid,ownerEmail:currentUser.email,ownerName:currentUser.first,type:el('dType').value,category:el('dCategory').value.trim(),text:el('dText').value.trim(),country:el('dCountry').value.trim(),region:el('dRegion').value.trim(),city:el('dCity').value.trim(),coords:demandCoords||currentUser.coords||null,minPrice:Number(el('dMin').value||0),maxPrice:Number(el('dMax').value||0),when:el('dWhen').value,priority:el('dPriority').value,status:'open',createdAt:now()};if(!x.category||!x.text||!x.country||!x.region||!x.city){setStatus('dStatus','Заповніть категорію, опис, країну, регіон і місто.','bad');return}try{if(MODE==='cloud'){const r=db.ref('demands').push();x.id=r.key;await r.set(x);cacheOwnDemand(x);await notifyMatchingProviders(x)}else{const a=jget(LS.demands,[]);x.id=uid();a.push(x);jset(LS.demands,a)}setStatus('dStatus','Попит опубліковано. Відповідні виконавці можуть його побачити.','good');toast('Попит у системі');setTimeout(()=>nav('market'),350)}catch(e){setStatus('dStatus',friendlyFirebaseError(e),'bad')}}
+
+/* ===== Так-2-Так World Gateway 5.0 =====
+   Принцип: запит -> намір/місце -> кілька реальних джерел -> нормалізація ->
+   відсів/ранжування -> до 3 результатів. Невідоме не вигадується.
+*/
+const EXTERNAL_CACHE_TTL=10*60*1000;
+const SECURE_GATEWAYS={
+  openBanking:{status:'secure-required',reason:'AISP/PISP authorization + consent + certificates + backend'},
+  payments:{status:'secure-required',reason:'merchant agreement + server-side secret keys'},
+  closedMarketplaces:{status:'agreement-required',reason:'official partner API/agreement'},
+  privateRegistries:{status:'agreement-required',reason:'lawful authorization/API'}
+};
+window.T2T_SECURE={
+  gateways:SECURE_GATEWAYS,
+  adapters:{},
+  register(name,adapter){this.adapters[name]=adapter},
+  async call(name,request){
+    const a=this.adapters[name];
+    if(!a||typeof a.call!=='function') throw new Error('Захищений шлюз '+name+' ще не авторизований.');
+    return a.call(request);
+  }
+};
+
+function stripHtml(s){const d=document.createElement('div');d.innerHTML=String(s||'');return d.textContent||''}
+function tokenStem(s){
+  return norm(s).replace(/[^a-zа-яіїєґ0-9 ]/gi,' ').split(/\s+/).filter(x=>x.length>=3)
+    .map(x=>x.replace(/(ові|еві|єві|ого|ому|ими|ами|ями|ах|ях|ий|ій|а|у|і|и|ою|ою|ом|ем|ів|їв|ки|ка|ку|на|ні)$/,''));
+}
+function lexicalScore(query,title){
+  const q=tokenStem(query),t=tokenStem(title);
+  let n=0;for(const a of q)if(t.some(b=>b.includes(a)||a.includes(b)))n++;
+  return q.length?n/q.length:0;
+}
+function extCacheGet(key){try{const x=JSON.parse(localStorage.getItem('t2t_ext_'+key)||'null');return x&&now()-x.at<EXTERNAL_CACHE_TTL?x.value:null}catch{return null}}
+function extCacheSet(key,value){try{localStorage.setItem('t2t_ext_'+key,JSON.stringify({at:now(),value}))}catch{}}
+async function fetchJson(url,opts={},timeout=12000){
+  const c=new AbortController(),tm=setTimeout(()=>c.abort(),timeout);
+  try{
+    const r=await fetch(url,{...opts,signal:c.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return await r.json();
+  }finally{clearTimeout(tm)}
+}
+function needsNearest(t){return /найближ|поруч|біля мене|де мені|недалеко|рядом|closest|near me/i.test(t||'')}
+function looksWeather(t){return /погод|температур|дощ|сніг|вітер|weather|forecast|天气|天氣|温度|溫度|下雨|风速|風速/i.test(t||'')}
+function looksFx(t){return /(курс|обмін|exchange rate|汇率|匯率).*(долар|євро|злот|фунт|usd|eur|pln|gbp|美元|欧元|歐元)|\b(usd|eur|pln|gbp)\b.*(курс|грн|uah|rate)/i.test(t||'')}
+function looksScience(t){return /дослідж|науков|статт|doi|research|paper|публікац|研究|论文|論文|科学|科學/i.test(t||'')}
+function looksBook(t){return /книг|книж|автор|роман|book|isbn|书|書|作者|小说|小說/i.test(t||'')}
+function looksWorldStat(t){return /населен|ввп|gdp|інфляц|безробіт|тривалість життя|population|unemployment/i.test(t||'')}
+function looksGeneralInfo(t){return /хто |що таке|розкажи|інформац|довід|історі|біограф|where is|what is|who is/i.test(norm(t||''))}
+function localTagSpec(t){
+  const s=norm(t||'');
+  if(/заправ|азс|бензин|дизел|пальн|укрнафт|gas station|fuel|petrol|ukrnafta|okko|wog|socar|upg|brsm|加油站|加油|燃油/.test(s))return ['amenity','fuel','АЗС'];
+  if(/банкомат|atm|自动取款机|自動櫃員機/.test(s))return ['amenity','atm','Банкомат'];
+  if(/банк|відділення банку|bank|银行|銀行/.test(s))return ['amenity','bank','Банк'];
+  if(/аптек|pharmacy|药店|藥局/.test(s))return ['amenity','pharmacy','Аптека'];
+  if(/лікарн|больниц|hospital|医院|醫院/.test(s))return ['amenity','hospital','Лікарня'];
+  if(/клінік/.test(s))return ['amenity','clinic','Клініка'];
+  if(/стомат|dentist/.test(s))return ['amenity','dentist','Стоматологія'];
+  if(/ресторан|restaurant|餐厅|餐廳/.test(s))return ['amenity','restaurant','Ресторан'];
+  if(/кафе|coffee|cafe|кав'яр|кав’яр|咖啡/.test(s))return ['amenity','cafe','Кафе'];
+  if(/готел|hotel|хостел|酒店|飯店|旅馆|旅館/.test(s))return ['tourism','hotel','Готель'];
+  if(/супермаркет|продуктов|supermarket|超市/.test(s))return ['shop','supermarket','Супермаркет'];
+  if(/автосервіс|сто|ремонт авто|шиномонтаж/.test(s))return ['shop','car_repair','Автосервіс'];
+  if(/зарядк.*авто|електрозаряд|charging|充电站|充電站/.test(s))return ['amenity','charging_station','Зарядна станція'];
+  if(/пошт|нова пошта|укрпошт/.test(s))return ['amenity','post_office','Пошта'];
+  if(/парков/.test(s))return ['amenity','parking','Парковка'];
+  if(/поліц|полиц/.test(s))return ['amenity','police','Поліція'];
+  if(/школ/.test(s))return ['amenity','school','Школа'];
+  if(/університет|універ/.test(s))return ['amenity','university','Університет'];
+  if(/перукар|барбер/.test(s))return ['shop','hairdresser','Перукарня'];
+  if(/салон крас|манікюр|beauty/.test(s))return ['shop','beauty','Салон краси'];
+  return null;
+}
+async function browserPosition(){
+  if(!navigator.geolocation)return null;
+  return await new Promise(resolve=>{
+    navigator.geolocation.getCurrentPosition(
+      p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,lon:p.coords.longitude,accuracy:p.coords.accuracy,source:'gps'}),
+      ()=>resolve(null),
+      {enableHighAccuracy:true,timeout:7000,maximumAge:120000}
+    )
+  })
+}
+async function geocodeCity(city,country){
+  if(!city)return null;
+  const key='geo_'+norm(city+'_'+country),cached=extCacheGet(key);if(cached)return cached;
+  const q=encodeURIComponent([city,country].filter(Boolean).join(', '));
+  const gl=ACTIVE_LANG.startsWith('zh')?'zh':ACTIVE_LANG.startsWith('en')?'en':'uk';const j=await fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=3&language=${gl}&format=json`);
+  const r=j?.results?.[0];if(!r)return null;
+  const x={lat:r.latitude,lng:r.longitude,lon:r.longitude,source:'Open-Meteo Geocoding',label:[r.name,r.admin1,r.country].filter(Boolean).join(', ')};
+  extCacheSet(key,x);return x;
+}
+async function ensureWorldCoords(d){
+  if(d.coords?.lat!=null&&(d.coords?.lng!=null||d.coords?.lon!=null)){if(d.coords.lng==null)d.coords.lng=d.coords.lon;if(d.coords.lon==null)d.coords.lon=d.coords.lng;return d.coords;}
+  if(needsNearest(d.text)){
+    const p=await browserPosition();
+    if(p){d.coords=p;demandCoords=p;return p}
+  }
+  try{return await geocodeCity(d.city,d.country)}catch{return null}
+}
+function osmName(e,fallback){
+  const t=e.tags||{};return t.name||t['name:uk']||t.brand||t.operator||fallback||'Місце';
+}
+function osmAddress(t){
+  const parts=[t['addr:street'],t['addr:housenumber'],t['addr:city']].filter(Boolean);
+  return parts.join(' ')||t['contact:address']||'Адреса не вказана у джерелі';
+}
+function requestedBrand(text){const s=norm(text||'');const known=['укрнафта','ukrnafta','okko','wog','socar','upg','brsm','shell','bp','esso','tesla','novus','silpo','сільпо','atb','атб','nova poshta','нова пошта'];return known.find(x=>s.includes(x))||null}
+async function searchOSMPlaces(d){
+  const spec=localTagSpec(d.text+' '+d.category);if(!spec)return [];
+  const c=await ensureWorldCoords(d);if(!c)return [];
+  const [k,v,label]=spec,radius=30000;
+  const q=`[out:json][timeout:18];(nwr(around:${radius},${Number(c.lat).toFixed(6)},${Number(c.lng??c.lon).toFixed(6)})["${k}"="${v}"];);out center tags 120;`;
+  const key='osm_'+k+'_'+v+'_'+Number(c.lat).toFixed(3)+'_'+Number(c.lng??c.lon).toFixed(3);
+  let j=extCacheGet(key);
+  if(!j){j=await fetchJson('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'data='+encodeURIComponent(q)},18000);extCacheSet(key,j)}
+  const arr=(j?.elements||[]).map(e=>{
+    const lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;if(lat==null||lon==null)return null;
+    const t=e.tags||{},title=osmName(e,label),dist=haversine(c,{lat,lng:lon});
+    return {source:'OpenStreetMap / Overpass',kind:'place',title,subtitle:osmAddress(t),distanceKm:dist,lat,lon,
+      url:`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`,
+      sourceStatus:'Відкрите джерело; дані не перевірені Так-2-Так',lex:lexicalScore(d.text,title+' '+(t.brand||'')+' '+(t.operator||''))};
+  }).filter(Boolean);
+  const brand=requestedBrand(d.text);
+  let chosen=arr;
+  if(brand){const bnorm=norm(brand);const bm=arr.filter(x=>norm(x.title+' '+x.subtitle).includes(bnorm));if(bm.length)chosen=bm;else return [];}
+  chosen.sort((a,b)=>(b.lex-a.lex)||((a.distanceKm??9999)-(b.distanceKm??9999)));
+  const strongest=chosen[0]?.lex||0;
+  const filtered=brand?chosen:(strongest>0.18?chosen.filter(x=>x.lex>=Math.max(.12,strongest*.45)):chosen);
+  return filtered.slice(0,3);
+}
+async function searchWikipedia(d){
+  if(localTagSpec(d.text)||looksFx(d.text)||looksWeather(d.text)||looksScience(d.text)||looksBook(d.text))return [];
+  const q=d.text.trim();if(!q)return [];
+  const whost=ACTIVE_LANG.startsWith('zh')?'zh.wikipedia.org':ACTIVE_LANG.startsWith('en')?'en.wikipedia.org':'uk.wikipedia.org';const url=`https://${whost}/w/api.php?action=query&list=search&format=json&origin=*&srlimit=3&srsearch=`+encodeURIComponent(q);
+  const j=await fetchJson(url,{},10000);
+  return (j?.query?.search||[]).slice(0,3).map(x=>({source:'Wikipedia',kind:'info',title:x.title,subtitle:stripHtml(x.snippet),
+    url:`https://${whost}/wiki/`+encodeURIComponent(x.title.replace(/ /g,'_')),sourceStatus:'Відкрите енциклопедичне джерело'}));
+}
+function currencyCodeFromText(t){
+  const s=norm(t);if(/євро|eur/.test(s))return'EUR';if(/злот|pln/.test(s))return'PLN';if(/фунт|gbp/.test(s))return'GBP';if(/долар|usd/.test(s))return'USD';return null;
+}
+async function searchNBU(d){
+  if(!looksFx(d.text))return [];
+  const code=currencyCodeFromText(d.text);
+  const j=await fetchJson('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchangenew?json',{},10000);
+  const rows=Array.isArray(j)?j:[];
+  const use=code?rows.filter(x=>x.cc===code):rows.filter(x=>['USD','EUR','PLN','GBP'].includes(x.cc));
+  return use.slice(0,3).map(x=>({source:'НБУ Open Data',kind:'finance',title:`${x.cc}: ${Number(x.rate).toFixed(4)} грн`,
+    subtitle:`Офіційний курс НБУ • ${x.exchangedate||'поточна дата'}`,url:'https://bank.gov.ua/ua/markets/exchangerates',
+    sourceStatus:'Офіційні відкриті дані НБУ'}));
+}
+async function searchWeather(d){
+  if(!looksWeather(d.text))return [];
+  const c=await ensureWorldCoords(d);if(!c)return [];
+  const j=await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lng??c.lon}&current=temperature_2m,apparent_temperature,precipitation,wind_speed_10m&timezone=auto`,{},10000);
+  const x=j?.current;if(!x)return[];
+  return [{source:'Open-Meteo',kind:'weather',title:`${x.temperature_2m}°C`,subtitle:`Відчувається ${x.apparent_temperature}°C • опади ${x.precipitation} мм • вітер ${x.wind_speed_10m} км/год`,
+    url:'https://open-meteo.com/',sourceStatus:'Відкрите метеорологічне джерело'}];
+}
+async function searchCrossref(d){
+  if(!looksScience(d.text))return [];
+  const j=await fetchJson('https://api.crossref.org/works?rows=3&select=DOI,title,author,published&query.bibliographic='+encodeURIComponent(d.text),{},12000);
+  return (j?.message?.items||[]).map(x=>({source:'Crossref',kind:'science',title:(x.title||[])[0]||x.DOI||'Наукова робота',
+    subtitle:(x.author||[]).slice(0,2).map(a=>[a.given,a.family].filter(Boolean).join(' ')).join(', '),
+    url:x.DOI?'https://doi.org/'+x.DOI:'https://search.crossref.org/',sourceStatus:'Відкриті бібліографічні метадані'}));
+}
+async function searchOpenLibrary(d){
+  if(!looksBook(d.text))return [];
+  const j=await fetchJson('https://openlibrary.org/search.json?limit=3&q='+encodeURIComponent(d.text),{},10000);
+  return (j?.docs||[]).slice(0,3).map(x=>({source:'Open Library',kind:'book',title:x.title||'Книга',
+    subtitle:[(x.author_name||[]).slice(0,2).join(', '),x.first_publish_year].filter(Boolean).join(' • '),
+    url:x.key?'https://openlibrary.org'+x.key:'https://openlibrary.org/',sourceStatus:'Відкриті бібліографічні дані'}));
+}
+function worldBankIndicator(t){
+  const s=norm(t);
+  if(/населен|population/.test(s))return['SP.POP.TOTL','Населення'];
+  if(/\bввп\b|gdp/.test(s))return['NY.GDP.MKTP.CD','ВВП, поточні USD'];
+  if(/безробіт|unemployment/.test(s))return['SL.UEM.TOTL.ZS','Безробіття, %'];
+  if(/тривалість життя/.test(s))return['SP.DYN.LE00.IN','Очікувана тривалість життя'];
+  return null;
+}
+function worldBankCountry(d){
+  const s=norm(d.text+' '+d.country);
+  if(/україн|ukraine/.test(s))return'UKR';if(/польщ|poland/.test(s))return'POL';if(/німеч|germany/.test(s))return'DEU';
+  if(/франц|france/.test(s))return'FRA';if(/сша|usa|united states/.test(s))return'USA';if(/британ|united kingdom|uk\b/.test(s))return'GBR';
+  return null;
+}
+async function searchWorldBank(d){
+  const ind=worldBankIndicator(d.text),cty=worldBankCountry(d);if(!ind||!cty)return[];
+  const j=await fetchJson(`https://api.worldbank.org/v2/country/${cty}/indicator/${ind[0]}?format=json&per_page=5`,{},10000);
+  const row=Array.isArray(j)?(j[1]||[]).find(x=>x.value!=null):null;if(!row)return[];
+  return [{source:'World Bank',kind:'stats',title:`${ind[1]}: ${Number(row.value).toLocaleString('uk-UA')}`,subtitle:`${row.country?.value||cty} • ${row.date}`,
+    url:'https://data.worldbank.org/',sourceStatus:'Відкриті дані World Bank'}];
+}
+function dedupeExternal(items){
+  const m=new Map();for(const x of items||[]){const k=norm((x.source||'')+'|'+(x.title||'')+'|'+(x.subtitle||''));if(k&&!m.has(k))m.set(k,x)}
+  return [...m.values()];
+}
+async function searchWorld(d){
+  const sources=[
+    ['OpenStreetMap / Overpass',searchOSMPlaces],
+    ['Open-Meteo',searchWeather],
+    ['НБУ Open Data',searchNBU],
+    ['Wikipedia',searchWikipedia],
+    ['Crossref',searchCrossref],
+    ['Open Library',searchOpenLibrary],
+    ['World Bank',searchWorldBank]
+  ];
+  const settled=await Promise.allSettled(sources.map(async([name,fn])=>({name,items:await fn(d)})));
+  const items=[],sourceReport=[];
+  for(const r of settled){
+    if(r.status==='fulfilled'){items.push(...(r.value.items||[]));sourceReport.push({source:r.value.name,status:'ok',count:(r.value.items||[]).length})}
+    else sourceReport.push({source:'джерело',status:'error',error:String(r.reason?.message||r.reason)})
+  }
+  let out=dedupeExternal(items);
+  if(localTagSpec(d.text)){
+    out.sort((a,b)=>(a.distanceKm??99999)-(b.distanceKm??99999));
+  }
+  return {results:out.slice(0,3),sourceReport,searchedAt:now()};
+}
+function renderExternalResult(r,i){
+  const dist=r.distanceKm!=null?`<span class="pill distance">≈ ${r.distanceKm.toFixed(r.distanceKm<10?1:0)} км</span>`:'';
+  const link=r.url?`<a class="outline compact" style="display:inline-block;text-decoration:none" target="_blank" rel="noopener" href="${esc(r.url)}">Відкрити джерело</a>`:'';
+  return `<div class="item"><div class="row"><div><span class="rank">${i+1}</span> <b>${esc(r.title)}</b></div></div><p>${esc(r.subtitle||'')}</p><div>${dist}<span class="pill">${esc(r.source)}</span></div><div class="small">${esc(r.sourceStatus||'Джерело не перевірене Так-2-Так')}</div>${link}</div>`;
+}
+
+async function createDemand(){
+  if(!requireUser())return;
+  await ensureValidSession('demand');
+  const x={ownerUid:currentUser.uid,ownerEmail:currentUser.email,ownerName:currentUser.first,type:el('dType').value,category:el('dCategory').value.trim(),text:el('dText').value.trim(),country:el('dCountry').value.trim(),region:el('dRegion').value.trim(),city:el('dCity').value.trim(),coords:demandCoords||currentUser.coords||null,minPrice:Number(el('dMin').value||0),maxPrice:Number(el('dMax').value||0),when:el('dWhen').value,priority:el('dPriority').value,status:'open',createdAt:now()};
+  if(!x.category||!x.text||!x.country||!x.region||!x.city){setStatus('dStatus','Заповніть категорію, опис, країну, регіон і місто.','bad');return}
+  setStatus('dStatus','Шукаю у підключених реальних джерелах і публікую попит…','');
+  try{
+    try{
+      const world=await searchWorld(x);
+      x.externalResults=world.results||[];
+      x.externalSourceReport=world.sourceReport||[];
+      x.externalSearchedAt=world.searchedAt||now();
+    }catch(e){
+      x.externalResults=[];
+      x.externalSearchError=String(e?.message||e);
+    }
+    if(MODE==='cloud'){
+      const r=db.ref('demands').push();x.id=r.key;await r.set(x);cacheOwnDemand(x);await notifyMatchingProviders(x)
+    }else{
+      const a=jget(LS.demands,[]);x.id=uid();a.push(x);jset(LS.demands,a)
+    }
+    const n=(x.externalResults||[]).length;
+    setStatus('dStatus',n?`Знайдено зовнішніх результатів: ${n}. Попит також опубліковано.`:'Зовнішнє джерело не дало придатного результату. Попит опубліковано для живих пропозицій.','good');
+    toast(n?'Є реальні зовнішні результати':'Попит у системі');
+    setTimeout(()=>nav('market'),500)
+  }catch(e){setStatus('dStatus',friendlyFirebaseError(e),'bad')}
+}
 async function createGeneralOffer(){if(!requireUser())return;await ensureValidSession('offer');const x={ownerUid:currentUser.uid,ownerEmail:currentUser.email,ownerName:currentUser.first,type:el('oType').value,title:el('oTitle').value.trim(),category:el('oCategory').value.trim(),text:el('oText').value.trim(),country:el('oCountry').value.trim(),region:el('oRegion').value.trim(),city:el('oCity').value.trim(),coords:offerCoords||currentUser.coords||null,address:el('oAddress').value.trim(),price:Number(el('oPrice').value||0),currency:el('oCurrency').value,speed:el('oSpeed').value.trim(),availability:el('oAvailability').value,rating:Number(currentUser.rating||5),verified:!!currentUser.verified,createdAt:now(),status:'active'};if(!x.title||!x.category||!x.text||!x.country||!x.region||!x.city||!x.price){setStatus('oStatus','Заповніть назву, категорію, опис, країну, регіон, місто і ціну.','bad');return}try{if(MODE==='cloud'){const r=db.ref('offers').push();x.id=r.key;await r.set(x)}else{const a=jget(LS.offers,[]);x.id=uid();a.push(x);jset(LS.offers,a)}setStatus('oStatus','Пропозицію опубліковано.','good');toast('Пропозиція у системі')}catch(e){setStatus('oStatus',friendlyFirebaseError(e),'bad')}}
 function cacheOwnDemand(x){const a=jget(LS.demands,[]);const i=a.findIndex(d=>d.id===x.id);if(i>=0)a[i]=x;else a.push(x);jset(LS.demands,a)}
 async function allDemands(){if(MODE==='cloud'){try{const s=await db.ref('demands').once('value');const a=[];s.forEach(c=>a.push({...c.val(),id:c.key}));const own=jget(LS.demands,[]).filter(d=>d.ownerUid===currentUser?.uid||d.ownerEmail===currentUser?.email);const map=new Map(a.map(d=>[d.id,d]));own.forEach(d=>{if(!map.has(d.id))map.set(d.id,d)});return [...map.values()]}catch(e){console.warn('Demands read:',e);return jget(LS.demands,[])}}return jget(LS.demands,[])}
@@ -284,7 +617,33 @@ async function submitDemandResponse(){if(!requireUser()||!activeResponseDemandId
 function scoreResponse(r,d,all){let score=0;const prices=all.map(x=>x.price).filter(x=>Number.isFinite(x)&&x>0),mins=all.map(x=>x.minutes).filter(x=>Number.isFinite(x)&&x>0);const priceScore=prices.length?(Math.max(...prices)===Math.min(...prices)?25:25*(Math.max(...prices)-r.price)/(Math.max(...prices)-Math.min(...prices))):12.5;const speedScore=mins.length?(Math.max(...mins)===Math.min(...mins)?20:20*(Math.max(...mins)-r.minutes)/(Math.max(...mins)-Math.min(...mins))):10;const ratingScore=Math.min(25,Math.max(0,Number(r.rating||0))*5);const dist=haversine(d.coords,r.coords);const geoScore=dist!=null?Math.max(0,20-Math.min(20,dist/2)):(norm(r.city)===norm(d.city)?20:(norm(r.region)===norm(d.region)?10:0));const verifyScore=r.verified?10:0;const violationPenalty=Math.min(15,Number(r.violations||0)*5);const weights=d.priority==='price'?[1.45,.75,.9,.9,1]:d.priority==='speed'?[.8,1.5,.9,.9,1]:d.priority==='rating'?[.8,.8,1.45,.9,1]:d.priority==='distance'?[.8,.8,.9,1.5,1]:[1,1,1,1,1];score=priceScore*weights[0]+speedScore*weights[1]+ratingScore*weights[2]+geoScore*weights[3]+verifyScore*weights[4]-violationPenalty;return{score:Math.round(score*10)/10,distanceKm:dist}}
 async function topForDemand(d){const rs=(await allResponses()).filter(r=>r.demandId===d.id&&(r.status==='active'||r.id===d.selectedResponseId));return rs.map(r=>({...r,...scoreResponse(r,d,rs)})).sort((a,b)=>b.score-a.score||a.price-b.price||a.minutes-b.minutes).slice(0,3)}
 function whyRanked(r){const bits=[];bits.push(`${r.price} грн`);bits.push(`${r.minutes} хв`);bits.push(`рейтинг ${Number(r.rating||0).toFixed(1)}`);if(r.distanceKm!=null)bits.push(`${r.distanceKm.toFixed(r.distanceKm<10?1:0)} км`);else bits.push(r.city);if(r.verified)bits.push('перевірений');return bits.join(' • ')}
-async function renderMarket(){const box=el('marketList');if(!currentUser){box.innerHTML='<div class="card empty">Увійдіть, щоб побачити свої результати.</div>';return}const cloudDs=(await allDemands()).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),cached=jget(LS.demands,[]).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),m=new Map([...cloudDs,...cached].map(d=>[d.id,d]));const ds=[...m.values()].sort((a,b)=>b.createdAt-a.createdAt);if(!ds.length){box.innerHTML='<div class="card empty">У вас ще немає попитів.</div>';return}let html='';for(const d of ds){const top=await topForDemand(d),selected=!!d.selectedResponseId;html+=`<div class="card"><h3>${esc(d.category)}</h3><p>${esc(d.text)}</p><div><span class="pill">${esc(d.city)}</span><span class="pill">${esc(d.when)}</span><span class="pill">${selected?'Варіант обрано':d.status==='open'?'Відкритий':esc(d.status)}</span></div><div class="sep"></div><b>${top.length>=3?'3 найкращі пропозиції':top.length?`Реальних пропозицій: ${top.length}`:'Реальних пропозицій поки немає'}</b>`;top.forEach((r,i)=>{const chosen=r.id===d.selectedResponseId;html+=`<div class="item ${chosen?'successbox':''}"><div class="row"><div><span class="rank">${i+1}</span> <b>${esc(r.ownerName||'Виконавець')}</b></div><div class="right"><b>${r.score} балів</b></div></div><div class="price">${r.price} грн</div><p>${esc(r.comment)}</p><div class="quality">Чому в топі: ${esc(whyRanked(r))}</div><div>${r.distanceKm!=null?`<span class="pill distance">≈ ${r.distanceKm.toFixed(r.distanceKm<10?1:0)} км</span>`:''}<span class="pill">Рейтинг ${Number(r.rating||0).toFixed(1)}</span><span class="pill">${r.verified?'Перевірений':'Не перевірений'}</span>${chosen?'<span class="pill">✓ ОБРАНО</span>':''}</div>${!selected?`<button class="primary" onclick="selectResponse('${esc(d.id)}','${esc(r.id)}')">Обрати цей варіант</button>`:''}${chosen&&d.status!=='completed'?`<button class="secondary" onclick="completeDemand('${esc(d.id)}','${esc(r.id)}')">Підтвердити виконання / оцінити</button>`:''}</div>`});html+='</div>'}box.innerHTML=html}
+async function renderMarket(){
+  const box=el('marketList');
+  if(!currentUser){box.innerHTML='<div class="card empty">Увійдіть, щоб побачити свої результати.</div>';return}
+  const cloudDs=(await allDemands()).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),
+        cached=jget(LS.demands,[]).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),
+        m=new Map([...cloudDs,...cached].map(d=>[d.id,d]));
+  const ds=[...m.values()].sort((a,b)=>b.createdAt-a.createdAt);
+  if(!ds.length){box.innerHTML='<div class="card empty">У вас ще немає попитів.</div>';return}
+  let html='';
+  for(const d of ds){
+    const top=await topForDemand(d), ext=(d.externalResults||[]).slice(0,3), selected=!!d.selectedResponseId;
+    html+=`<div class="card"><h3>${esc(d.category)}</h3><p>${esc(d.text)}</p><div><span class="pill">${esc(d.city)}</span><span class="pill">${esc(d.when)}</span><span class="pill">${selected?'Варіант обрано':d.status==='open'?'Відкритий':esc(d.status)}</span></div>`;
+    if(ext.length){
+      html+=`<div class="sep"></div><b>${ext.length>=3?'3 найкращі зовнішні результати':`Зовнішніх результатів: ${ext.length}`}</b><div class="small">Це дані реальних зовнішніх джерел. Статус джерела показано окремо; Так-2-Так не називає їх перевіреними, якщо власної перевірки не було.</div>`;
+      ext.forEach((r,i)=>html+=renderExternalResult(r,i));
+    }else{
+      html+=`<div class="sep"></div><b>Зовнішніх результатів немає</b><div class="small">Або підключені джерела не знайшли відповідь, або конкретне потрібне джерело ще потребує API/угоди/авторизації.</div>`;
+    }
+    html+=`<div class="sep"></div><b>${top.length>=3?'3 найкращі живі пропозиції Так-2-Так':top.length?`Живих пропозицій: ${top.length}`:'Живих пропозицій від учасників поки немає'}</b>`;
+    top.forEach((r,i)=>{
+      const chosen=r.id===d.selectedResponseId;
+      html+=`<div class="item ${chosen?'successbox':''}"><div class="row"><div><span class="rank">${i+1}</span> <b>${esc(r.ownerName||'Виконавець')}</b></div><div class="right"><b>${r.score} балів</b></div></div><div class="price">${r.price} грн</div><p>${esc(r.comment)}</p><div class="quality">Чому в топі: ${esc(whyRanked(r))}</div><div>${r.distanceKm!=null?`<span class="pill distance">≈ ${r.distanceKm.toFixed(r.distanceKm<10?1:0)} км</span>`:''}<span class="pill">Рейтинг ${Number(r.rating||0).toFixed(1)}</span><span class="pill">${r.verified?'Перевірений':'Не перевірений'}</span>${chosen?'<span class="pill">✓ ОБРАНО</span>':''}</div>${!selected?`<button class="primary" onclick="selectResponse('${esc(d.id)}','${esc(r.id)}')">Обрати цей варіант</button>`:''}${chosen&&d.status!=='completed'?`<button class="secondary" onclick="completeDemand('${esc(d.id)}','${esc(r.id)}')">Підтвердити виконання / оцінити</button>`:''}</div>`;
+    });
+    html+='</div>';
+  }
+  box.innerHTML=html
+}
 async function selectResponse(demandId,responseId){if(!requireUser())return;try{const d=(await allDemands()).find(x=>x.id===demandId),r=(await allResponses()).find(x=>x.id===responseId);if(!d||!r)return;if(MODE==='cloud'){await db.ref('demands/'+demandId).update({status:'selected',selectedResponseId:responseId,selectedAt:now()});await db.ref('responses/'+responseId).update({status:'selected'});await addNotification(r.ownerUid,'Вашу пропозицію обрано',d.text,{type:'selected',demandId,responseId})}else{const ds=jget(LS.demands,[]),x=ds.find(q=>q.id===demandId);if(x){x.status='selected';x.selectedResponseId=responseId;jset(LS.demands,ds)}}toast('Вибір зафіксовано');await renderMarket()}catch(e){setStatus('marketStatus','Не вдалося обрати: '+friendlyFirebaseError(e),'bad')}}
 async function completeDemand(demandId,responseId){if(!requireUser())return;const rating=Number(prompt('Оцініть виконання від 1 до 5','5'));if(!rating)return;const safe=Math.max(1,Math.min(5,rating)),review=prompt('Короткий відгук (необов’язково)','')||'';try{const r=(await allResponses()).find(x=>x.id===responseId);if(MODE==='cloud'){await db.ref('demands/'+demandId).update({status:'completed',completedAt:now(),rating:safe,review});if(r?.ownerUid){await db.ref('users/'+r.ownerUid).transaction(u=>{if(!u)return u;const c=Number(u.ratingCount||0),sum=Number(u.ratingSum||0)+safe;u.ratingCount=c+1;u.ratingSum=sum;u.rating=Math.round(sum/(c+1)*10)/10;return u});await addNotification(r.ownerUid,'Замовлення завершено',`Оцінка: ${safe}/5`,{type:'completed',demandId,responseId})}}else{const ds=jget(LS.demands,[]),d=ds.find(x=>x.id===demandId);if(d){d.status='completed';d.rating=safe;d.review=review;jset(LS.demands,ds)}}toast('Виконання підтверджено');await renderMarket()}catch(e){toast('Не вдалося завершити: '+friendlyFirebaseError(e))}}
 
@@ -299,10 +658,24 @@ function notifyBrowser(title,body){if('Notification' in window&&Notification.per
 function startRealtimeListeners(){stopRealtimeListeners();if(MODE!=='cloud'||!db||!currentUser)return;const nref=db.ref('notifications/'+currentUser.uid),ncb=s=>{let latest=null;s.forEach(c=>{const v=c.val();if(!v.read&&(!latest||v.createdAt>latest.createdAt))latest=v});renderNotifications();if(latest&&latest.createdAt>now()-12000)notifyBrowser(latest.title,latest.body)};nref.on('value',ncb);listeners.push([nref,'value',ncb]);const dref=db.ref('demands'),dcb=()=>{if(el('offer')?.classList.contains('active'))loadLiveDemands();if(el('market')?.classList.contains('active'))renderMarket()};dref.on('value',dcb);listeners.push([dref,'value',dcb]);const rref=db.ref('responses'),rcb=()=>{if(el('market')?.classList.contains('active'))renderMarket()};rref.on('value',rcb);listeners.push([rref,'value',rcb])}
 function stopRealtimeListeners(){listeners.forEach(([r,e,c])=>{try{r.off(e,c)}catch{}});listeners=[]}
 async function renderMyDemands(){const cloudDs=(await allDemands()).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),cached=jget(LS.demands,[]).filter(d=>d.ownerUid===currentUser.uid||d.ownerEmail===currentUser.email),m=new Map([...cloudDs,...cached].map(d=>[d.id,d]));const ds=[...m.values()].sort((a,b)=>b.createdAt-a.createdAt);el('myDemands').innerHTML=ds.length?ds.map(d=>`<div class="item"><b>${esc(d.category)}</b><p>${esc(d.text)}</p><span class="pill">${esc(d.status)}</span></div>`).join(''):'Попитів ще немає.'}
-function renderConnectors(){el('connectorList').innerHTML=connectors.map(([n,s])=>`<div class="item"><b>${esc(n)}</b><div class="small">${s==='active'?'Працює в цій версії':'Ще не підключено. Потрібен реальний відкритий доступ або офіційний API.'}</div></div>`).join('')}
+function renderConnectors(){
+  const label=s=>s==='active'?'Працює у поточному ядрі':s==='implemented'?'Код реального підключення реалізовано; потрібен тест саме на вашому телефоні/мережі':s==='secure-required'?'Потрібна захищена авторизація/backend':s==='agreement-required'?'Потрібен офіційний API/договір':'Не підключено';
+  el('connectorList').innerHTML=connectors.map(([n,s,d])=>`<div class="item"><b>${esc(n)}</b><div class="small">${esc(label(s))}</div>${d?`<div class="small">${esc(d)}</div>`:''}</div>`).join('')
+}
 
-window.T2T_CORE={version:APP_VERSION,trustRule:'Не видавати припущення за факт',states:{planned:'Задумано',implemented:'Реалізовано',verified:'Перевірено в реальності'},registerConnector(name,adapter){connectors.push([name,'active']);window.T2T_CORE[name]=adapter},async searchExternal(query){const out=[];for(const [name] of connectors){const a=window.T2T_CORE[name];if(a&&typeof a.search==='function'){try{out.push(...await a.search(query))}catch(e){console.warn(name,e)}}}return out}};
-window.addEventListener('load',()=>{restoreUILanguage();try{const p=JSON.parse(localStorage.getItem('t2t_pending_voice')||'null');if(p?.text){pendingHomeVoice=p;el('homeVoiceText').value=p.text;el('homeVoicePreview').classList.remove('hidden')}}catch{}initCloud()});
+window.T2T_CORE={
+  version:APP_VERSION,
+  trustRule:'Не видавати припущення за факт',
+  states:{planned:'Задумано',implemented:'Реалізовано',verified:'Перевірено в реальності'},
+  searchWorld,
+  secure:window.T2T_SECURE,
+  registerConnector(name,adapter){connectors.push([name,'implemented','Доданий через адаптер']);this[name]=adapter},
+  async searchExternal(query){
+    const d={text:String(query||''),category:'Інформація',city:currentUser?.city||'',country:currentUser?.country||'',coords:currentUser?.coords||null};
+    return (await searchWorld(d)).results
+  }
+};
+window.addEventListener('load',()=>{restoreUILanguage();translateStaticUI();try{const p=JSON.parse(localStorage.getItem('t2t_pending_voice')||'null');if(p?.text){pendingHomeVoice=p;el('homeVoiceText').value=p.text;el('homeVoicePreview').classList.remove('hidden')}}catch{}initCloud()});
 </script>
 </body>
 </html>
