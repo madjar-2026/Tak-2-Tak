@@ -148,7 +148,7 @@
     <button class="outline" onclick="nav('home')">← На головну</button>
   </section>
 
-  <div class="footer">Так-2-Так • v11.0 Preserved Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію</div>
+  <div class="footer">Так-2-Так • v12.0 Strict Intent Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію</div>
 </div>
 <div id="toast" class="toast"></div>
 
@@ -157,7 +157,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 'use strict';
-const APP_VERSION='11.0.0-preserved-core';
+const APP_VERSION='12.0.0-strict-intent-core';
 const FIREBASE_CONFIG={"apiKey":"AIzaSyB3hxK1s5IjK0uS593hykwL67_aVuxbMYk","authDomain":"tak-2-tak.firebaseapp.com","databaseURL":"https://tak-2-tak-default-rtdb.firebaseio.com","projectId":"tak-2-tak","storageBucket":"tak-2-tak.firebasestorage.app","messagingSenderId":"757950948500","appId":"1:757950948500:web:306180f7af4af956e84081","measurementId":"G-QGVXJN4PZH"};
 /* ===== Global language core =====
    UI packs currently verified in code: Ukrainian, English, Simplified Chinese, Traditional Chinese.
@@ -183,11 +183,11 @@ const PLACEHOLDER_I18N={
 'zh-TW':{'Україна':'烏克蘭','Без точної домашньої адреси':'不需填寫精確住址','+380...':'+886 / +380...','Напр.: манікюр, квіти, холодильник':'例如：美甲、鮮花、冰箱','Напр.: потрібен манікюр сьогодні після 18:00, недалеко від мене':'例如：今天18:00後附近需要美甲','Опишіть пропозицію вручну або голосом':'用文字或語音描述供給','Для перевірки, не обов\'язково показувати всім':'用於核驗，不一定公開顯示','30 хв, 1 день':'30分鐘，1天','Що саме ви зробите / доставите':'您具體會做什麼 / 配送什麼'}
 };
 Object.assign(I18N['en-US'],{
-'1 коп.':'1 kop.','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'Fixed rule: one session = one kopiyka. No percentage of the deal and no hidden transaction fee. During the pilot no money is charged; only test accounting is recorded.','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase configuration is embedded. Real access depends on enabled Email/Password authentication and Realtime Database rules.','Так-2-Так • v11.0 Preserved Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v11.0 Preserved Core • one index.html • UA / EN / 简体中文 / 繁體中文 • open sources + protected adapters • 1 kopiyka per session'});
+'1 коп.':'1 kop.','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'Fixed rule: one session = one kopiyka. No percentage of the deal and no hidden transaction fee. During the pilot no money is charged; only test accounting is recorded.','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase configuration is embedded. Real access depends on enabled Email/Password authentication and Realtime Database rules.','Так-2-Так • v12.0 Strict Intent Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v12.0 Strict Intent Core • one index.html • UA / EN / 简体中文 / 繁體中文 • open sources + protected adapters • 1 kopiyka per session'});
 Object.assign(I18N['zh-CN'],{
-'1 коп.':'1戈比','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'固定规则：一次会话 = 1 戈比。不按交易金额抽成，不收隐藏交易费。试点阶段不实际扣款，只记录测试账目。','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase 配置已嵌入。实际访问取决于是否启用邮箱/密码登录以及 Realtime Database 规则。','Так-2-Так • v11.0 Preserved Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v11.0 保留核心 • 单一 index.html • UA / EN / 简体中文 / 繁體中文 • 开放数据源 + 受保护适配器 • 每次会话1戈比'});
+'1 коп.':'1戈比','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'固定规则：一次会话 = 1 戈比。不按交易金额抽成，不收隐藏交易费。试点阶段不实际扣款，只记录测试账目。','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase 配置已嵌入。实际访问取决于是否启用邮箱/密码登录以及 Realtime Database 规则。','Так-2-Так • v12.0 Strict Intent Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v12.0 嚴格意圖核心 • 单一 index.html • UA / EN / 简体中文 / 繁體中文 • 开放数据源 + 受保护适配器 • 每次会话1戈比'});
 Object.assign(I18N['zh-TW'],{
-'1 коп.':'1戈比','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'固定規則：一次工作階段 = 1 戈比。不按交易金額抽成，不收隱藏交易費。試點階段不實際扣款，只記錄測試帳目。','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase 設定已嵌入。實際存取取決於是否啟用電子郵件/密碼登入以及 Realtime Database 規則。','Так-2-Так • v11.0 Preserved Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v11.0 保留核心 • 單一 index.html • UA / EN / 简体中文 / 繁體中文 • 開放資料來源 + 受保護適配器 • 每次工作階段1戈比'});
+'1 коп.':'1戈比','Незмінне правило: одна сесія = одна копійка. Без відсотка з угоди, без прихованої комісії за угоду. На етапі пілота гроші не списуються — ведеться лише тестовий облік.':'固定規則：一次工作階段 = 1 戈比。不按交易金額抽成，不收隱藏交易費。試點階段不實際扣款，只記錄測試帳目。','Конфігурація Firebase вбудована. Реальний доступ залежить від увімкненого Email/Password та правил Realtime Database.':'Firebase 設定已嵌入。實際存取取決於是否啟用電子郵件/密碼登入以及 Realtime Database 規則。','Так-2-Так • v12.0 Strict Intent Core • один index.html • UA / EN / 简体中文 / 繁體中文 • відкриті джерела + захищені адаптери • 1 копійка за сесію':'Tak-2-Tak • v12.0 嚴格意圖核心 • 單一 index.html • UA / EN / 简体中文 / 繁體中文 • 開放資料來源 + 受保護適配器 • 每次工作階段1戈比'});
 let ACTIVE_LANG='uk-UA';
 function resolveUILang(v){
   if(v&&v!=='auto'&&LANG_META[v])return v;
@@ -466,11 +466,32 @@ function osmAddress(t){
   const parts=[t['addr:street'],t['addr:housenumber'],t['addr:city']].filter(Boolean);
   return parts.join(' ')||t['contact:address']||'Адреса не вказана у джерелі';
 }
-function requestedBrand(text){const s=norm(text||'');const known=['укрнафта','ukrnafta','okko','wog','socar','upg','brsm','shell','bp','esso','tesla','novus','silpo','сільпо','atb','атб','nova poshta','нова пошта'];return known.find(x=>s.includes(x))||null}
+function requestedBrand(text){
+  const s=norm(text||'');
+  const known=['укрнафта','ukrnafta','okko','wog','socar','upg','brsm','shell','bp','esso','tesla','novus','silpo','сільпо','atb','атб','nova poshta','нова пошта'];
+  const hit=known.find(x=>s.includes(x)); if(hit)return hit;
+  const m=String(text||'').match(/(?:кафе(?:-бар)?|ресторан|готел(?:ь)?|аптек(?:а|у|и)?|магазин|салон|бар|cafe|restaurant|hotel|pharmacy|shop)\s+[«"“]?([\p{L}\p{M}0-9'’._-]+(?:\s+[\p{L}\p{M}0-9'’._-]+){0,2})[»"”]?/iu);
+  if(!m)return null;
+  let name=m[1].trim().replace(/[»"”]+$/g,'');
+  name=name.split(/\s+(?:у|в|на|біля|поруч|районі|район|області|місті|city|district|region)\b/iu)[0].trim();
+  return name.length>=2?name:null;
+}
+function explicitPlaceArea(text){
+ const s=String(text||'');
+ const m=s.match(/(?:у|в)\s+([\p{L}\p{M}'’.-]+(?:ському|цькому|зькому|ному|овому|евому))\s+районі/iu);
+ return m?m[1]+' район':null;
+}
+async function geocodeExplicitArea(text,d){
+ const area=explicitPlaceArea(text); if(!area)return null;
+ const q=[area,d.country||'Україна'].filter(Boolean).join(', '),lang=ACTIVE_LANG.startsWith('en')?'en':ACTIVE_LANG.startsWith('zh')?'zh':'uk';
+ try{const j=await nominatimSearch(q,lang),r=Array.isArray(j)?j[0]:null;if(r)return{lat:+r.lat,lng:+r.lon,lon:+r.lon,source:'Nominatim',label:r.display_name}}catch{}
+ return null;
+}
 async function searchOSMPlaces(d){
   const spec=localTagSpec(d.text+' '+d.category);if(!spec)return [];
-  const c=await ensureWorldCoords(d);if(!c)return [];
-  const [k,v,label]=spec,radius=30000;
+  const explicit=await geocodeExplicitArea(d.text,d);
+  const c=explicit||await ensureWorldCoords(d);if(!c)return [];
+  const [k,v,label]=spec,radius=explicit?50000:30000;
   const q=`[out:json][timeout:18];(nwr(around:${radius},${Number(c.lat).toFixed(6)},${Number(c.lng??c.lon).toFixed(6)})["${k}"="${v}"];);out center tags 120;`;
   const key='osm_'+k+'_'+v+'_'+Number(c.lat).toFixed(3)+'_'+Number(c.lng??c.lon).toFixed(3);
   let j=extCacheGet(key);
