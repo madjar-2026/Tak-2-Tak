@@ -143,8 +143,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 const T2T_BUILD={
- id:'20260911-map-query-checked-3',
- sequence:2026091103,
+ id:'20260911-session-history-fixed-4',
+ sequence:2026091104,
  baseBytes:218607,
  created:'2026-09-11',
  oneFile:true
@@ -557,19 +557,10 @@ async function openSession(area){
      currentSessionId===expectedSessionId;
    if(!sameIdentity)return;
 
-   // Preserve any history fields that may have been added later while keeping
-   // the canonical session identity and immutable 1-kopiyka/24h rule.
-   return {
-     ...current,
-     ...x,
-     userId,
-     area:normalizedArea,
-     lastArea:normalizedArea,
-     startedAt,
-     expiresAt,
-     feeKopiyka:1,
-     sessionId:expectedSessionId
-   };
+   // History is an immutable snapshot. Its lastSeenAt must not follow
+   // activeSessions.lastSeenAt, which advances on each visit.
+   // Returning the existing matching record also preserves unknown fields.
+   return current;
  });
  if(!historyTx.committed)throw Error('Запис історії сесії зупинено через зміну стану');
  localStorage.setItem(sessionKey(normalizedArea,userId),JSON.stringify(x));
@@ -1981,8 +1972,10 @@ async function runQuery(){
    :parseRelation(q)?'структурований факт'
    :needMap?'місце / карта':'перевірена інформація';
  kernelTrace('route','Маршрут: '+route+'. Відкривається одна тестова сесія запиту.');
+ let searchStage='session';
  try{
    await openSession('search');
+   searchStage='source';
 
    // Fixed exact-query rule: starred place/address queries are resolved as
    // ONE concrete geographic result first. They must not be diluted into
@@ -2058,10 +2051,13 @@ async function runQuery(){
    status('searchStatus',take.length===1?'1 конкретна відповідь.':`Знайдено ${take.length} найрелевантніші результати.`,'good');
  }catch(e){
    console.error(e);
-   if(/Не вдалося відкрити сесію/i.test(String(e?.message||''))){
-     $('results').innerHTML='<div class="result"><h3>Сесію не відкрито</h3><p>Пошук не запущено, тому що програмі не вдалося підтвердити сесію в Firebase. Нічого не списано і результат не вигадано.</p></div>';
-     kernelTrace('route','Сесію не підтверджено. Пошук зупинено.','failed');
-     return status('searchStatus','Не вдалося відкрити сесію. Пошук зупинено.','bad');
+   if(searchStage==='session'){
+     const code=String(e?.code||e?.message||'unknown').slice(0,180);
+     const denied=/permission[_ -]denied/i.test(code);
+     const detail=denied?'Firebase відхилив операцію сесії. Пошук у зовнішніх джерелах не запускався.':'Не вдалося завершити відкриття сесії. Пошук у зовнішніх джерелах не запускався.';
+     $('results').innerHTML=`<div class="result"><h3>Помилка сесії</h3><p>${esc(detail)}</p><div class="small">Код: ${esc(code)}</div></div>`;
+     kernelTrace('route',detail,'failed');
+     return status('searchStatus','Сесію не підтверджено. Пошук зупинено.','bad');
    }
    const f=searchFailureMessage(e);
    if(needMap&&$('sourceHealth'))$('sourceHealth').textContent='Карта: поточний запит не виконано.';
@@ -3554,4 +3550,4 @@ window.addEventListener('load',()=>{
  setTimeout(()=>updateSourceHealth().catch(()=>{}),300);
 });
 </script>
-<div id="buildInfo" class="muted small">Версія: 20260911-map-query-checked-3 · один index.html</div></body></html>
+<div id="buildInfo" class="muted small">Версія: 20260911-session-history-fixed-4 · один index.html</div></body></html>
