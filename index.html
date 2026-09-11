@@ -21,6 +21,8 @@ button{width:100%;border:0;border-radius:14px;padding:14px 16px;margin:5px 0;fon
 .pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#f2f4f7;font-size:12px;margin:2px}
 label{display:block;font-size:13px;font-weight:800;margin:10px 0 5px}.hidden{display:none!important}.voice{font-size:20px}.footer{text-align:center;color:#98a2b3;font-size:12px;margin-top:24px}
 .notice{padding:10px 12px;border-radius:13px;background:#fffaeb;border:1px solid #fedf89;font-size:13px}.answer{font-size:22px;font-weight:900;margin:5px 0 10px}
+.kernel{margin-top:12px;padding:12px;border:1px solid #d0d5dd;border-radius:14px;background:#f8fafc}.kernelTitle{font-weight:900;margin-bottom:8px}.kernelSteps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.kernelStep{padding:8px 6px;border-radius:10px;background:#eef1f5;color:#667085;text-align:center;font-size:12px;font-weight:800}.kernelStep.active{background:#fff1cc;color:#854a0e}.kernelStep.done{background:#dcfae6;color:#067647}.kernelStep.failed{background:#fee4e2;color:#b42318}.kernelRoute{margin-top:8px;font-size:12px;color:#475467}
+@media(max-width:650px){.kernelSteps{grid-template-columns:1fr 1fr}}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 </style>
 </head>
@@ -44,12 +46,22 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
     <div class="grid2"><button class="primary" onclick="runQuery()">Знайти</button><button class="secondary voice" onclick="voiceQuery()">🎤 Голос</button></div>
     <div id="searchStatus" class="status muted"></div>
     <div id="sourceHealth" class="small muted">Джерела: перевірка…</div>
+    <div id="kernelTrace" class="kernel" aria-live="polite">
+      <div class="kernelTitle">Ядро запиту</div>
+      <div class="kernelSteps">
+        <div class="kernelStep" data-kernel-step="understand">1. Зрозуміти</div>
+        <div class="kernelStep" data-kernel-step="route">2. Спрямувати</div>
+        <div class="kernelStep" data-kernel-step="verify">3. Перевірити</div>
+        <div class="kernelStep" data-kernel-step="answer">4. Відповісти</div>
+      </div>
+      <div id="kernelRoute" class="kernelRoute">Очікує запиту. Тут буде видно, що ядро зробило насправді.</div>
+    </div>
     <div id="results"></div>
   </div>
   <div class="grid3">
     <button class="outline" onclick="show('account')">Зареєструватися</button>
-    <button class="outline" onclick="enterFunctionalArea('offer')">Пропозиція</button>
-    <button class="outline" onclick="enterFunctionalArea('demand')">Попит</button>
+    <button class="outline" onclick="show('offer')">Пропозиція</button>
+    <button class="outline" onclick="show('demand')">Попит</button>
   </div>
   <div class="card small"><b>Правило:</b> 1 сесія = 1 копійка, максимум 24 години. Без відсотка з угоди й без прихованих комісій.</div>
 </section>
@@ -131,10 +143,10 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 const T2T_BUILD={
- id:'20260909-public-profile-freshness-fixed',
- sequence:20260909124,
- baseBytes:235201,
- created:'2026-09-09',
+ id:'20260911-visible-kernel-prototype-1',
+ sequence:2026091101,
+ baseBytes:218607,
+ created:'2026-09-11',
  oneFile:true
 };
 
@@ -157,7 +169,7 @@ function checkBuildRollback(){
 checkBuildRollback();
 
 const FIREBASE_CONFIG={"apiKey":"AIzaSyB3hxK1s5IjK0uS593hykwL67_aVuxbMYk","authDomain":"tak-2-tak.firebaseapp.com","databaseURL":"https://tak-2-tak-default-rtdb.firebaseio.com","projectId":"tak-2-tak","storageBucket":"tak-2-tak.firebasestorage.app","messagingSenderId":"757950948500","appId":"1:757950948500:web:306180f7af4af956e84081","measurementId":"G-QGVXJN4PZH"};
-let db=null,auth=null,currentUser=null,currentProfile=null,notifRef=null,notifUserId=null,liveDemandsRef=null,matchingDemandRef=null,matchingDemandWatchUserId=null,matchingDemandWatchBusy=false,profileRef=null,profileWatchUserId=null,participantCounterRef=null;
+let db=null,auth=null,currentUser=null,currentProfile=null,notifRef=null,notifUserId=null,liveDemandsRef=null,profileRef=null,profileWatchUserId=null;
 try{firebase.initializeApp(FIREBASE_CONFIG);auth=firebase.auth();db=firebase.database();auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)}catch(e){console.error(e)}
 const SESSION_RULE_VERSION='1-kopiyka-24h-no-commission-v1';
 function sessionRuleAccepted(profile){
@@ -183,7 +195,7 @@ async function acceptCurrentSessionRule(){
      return status('legacyConsentStatus','Доступ заблоковано системою безпеки.','bad');
    }
    const userRef=db.ref('users/'+userId);
-   const consentAt=await firebaseAdjustedNow();
+   const consentAt=Date.now();
    const tx=await userRef.transaction(current=>{
      // Consent belongs only to the currently authenticated complete account.
      // Abort if the profile disappears, becomes incomplete/blocked, or the
@@ -223,22 +235,23 @@ function show(id){
    refreshSessionRuleConsentUI();
  }
 }
-async function enterFunctionalArea(id){
- const area=id==='offer'?'offer':id==='demand'?'demand':null;
- if(!area)return show(id);
- // The fixed financial rule is charged by entry to a functional area, not only
- // by a later successful publication. Re-entry within the same 24-hour area
- // session reuses the authoritative activeSessions record and does not duplicate it.
- if(!await requireVerifiedAccount('alert'))return;
- try{
-   await openSession(area);
-   show(id);
- }catch(e){
-   console.warn('functional area entry failed',area,e);
-   alert('Не вдалося відкрити сесію '+(area==='offer'?'Пропозиції':'Попиту')+': '+e.message);
- }
-}
 function status(id,msg,kind='muted'){$(id).className='status '+kind;$(id).textContent=msg}
+function kernelTrace(step,message,state='active'){
+ const order=['understand','route','verify','answer'];
+ const current=Math.max(0,order.indexOf(step));
+ document.querySelectorAll('[data-kernel-step]').forEach(el=>{
+   const i=order.indexOf(el.dataset.kernelStep);
+   el.classList.remove('active','done','failed');
+   if(state==='failed'&&i===current)el.classList.add('failed');
+   else if(i<current||(state==='done'&&i===current))el.classList.add('done');
+   else if(i===current)el.classList.add('active');
+ });
+ if($('kernelRoute'))$('kernelRoute').textContent=message;
+}
+function resetKernelTrace(){
+ document.querySelectorAll('[data-kernel-step]').forEach(el=>el.classList.remove('active','done','failed'));
+ if($('kernelRoute'))$('kernelRoute').textContent='Очікує запиту. Тут буде видно, що ядро зробило насправді.';
+}
 function uid(){return currentUser?.uid||auth?.currentUser?.uid||null}
 function isSecurityBlocked(profile){
  if(!profile)return false;
@@ -285,13 +298,11 @@ async function recordSecurityEvent(userId,type,details={}){
      createdAt:firebase.database.ServerValue.TIMESTAMP,
      clientBuild:T2T_BUILD.id
    };
-   // securityEvents are deliberately unreadable to the client. A Firebase RTDB
-   // transaction needs read access to the target path, so using transaction()
-   // here would conflict with the server-side .read:false rule. push()+set()
-   // keeps the event create-only because Rules require !data.exists().
-   if(auth?.currentUser?.uid!==userId)return false;
-   await ref.set(payload);
-   return true;
+   const tx=await ref.transaction(current=>{
+     if(auth?.currentUser?.uid!==userId||current)return;
+     return payload;
+   });
+   return !!tx.committed;
  }catch(e){
    console.warn('security event log failed',e);
    return false;
@@ -310,10 +321,6 @@ async function enforceMissingProfileLockout(user,reason='profile-missing-live'){
  stopProfileSecurityWatch();
  stopNotificationsListener();
  stopLiveDemandsListener();
- stopMatchingDemandWatch();
- // A deleted private profile must not leave an old publicProfiles/{uid}
- // record advertising this account as active.
- try{await removeOwnPublicProfile(userId)}catch(e){console.warn('public profile cleanup after private deletion failed',e)}
  purgeLocalT2TUserData(userId);
  currentProfile=null;
  if($('authChip'))$('authChip').textContent='Гість';
@@ -344,7 +351,6 @@ function startProfileSecurityWatch(userId){
    }
    currentProfile=fresh;
    refreshSessionRuleConsentUI();
-   syncOwnPublicProfile(fresh,userId).catch(e=>console.warn('public profile live sync failed',e));
 
    // If a formerly complete profile becomes incomplete while the page is open,
    // stop functional listeners immediately. Protected actions remain fail-closed.
@@ -367,12 +373,6 @@ async function enforceSecurityLockout(user,profile,reason='blocked'){
  stopProfileSecurityWatch();
  stopNotificationsListener();
  stopLiveDemandsListener();
- stopMatchingDemandWatch();
- // Mirror the blocked state to the public profile before sign-out. This keeps
- // matching/selection UI from treating a server-blocked account as available.
- if(profile&&auth?.currentUser?.uid===userId){
-   try{await syncOwnPublicProfile(profile,userId)}catch(e){console.warn('public profile block sync failed',e)}
- }
  purgeLocalT2TUserData(userId);
  currentProfile=null;
  if($('authChip'))$('authChip').textContent='Заблоковано';
@@ -396,6 +396,23 @@ function sessionKey(area,userId=uid()){
  return 't2t_session_'+(userId||'guest')+'_'+normalizeSessionArea(area);
 }
 
+function chooseSessionCandidate(serverSession,localSession,now,userId,area){
+ const normalizedArea=normalizeSessionArea(area);
+ const expectedUserId=String(userId||'');
+ const valid=x=>{
+   const started=Number(x?.startedAt),expires=Number(x?.expiresAt);
+   if(!Number.isFinite(started)||started<=0||started>now||!Number.isFinite(expires))return false;
+   if(expectedUserId&&String(x?.userId||'')!==expectedUserId)return false;
+   if(normalizeSessionArea(x.area||x.lastArea)!==normalizedArea)return false;
+   // Fixed rule: a session can never live longer than 24 hours from startedAt.
+   const hardExpiry=started+86400000;
+   return now<Math.min(expires,hardExpiry);
+ };
+ if(valid(serverSession))return serverSession;
+ if(valid(localSession))return localSession;
+ return null;
+}
+
 async function firebaseAdjustedNow(){
  const localNow=Date.now();
  if(!db)return localNow;
@@ -409,16 +426,13 @@ async function firebaseAdjustedNow(){
  }
 }
 
-function sessionStateNext(current,area,now,userId){
+function sessionStateNext(current,candidate,area,now,userId){
  const normalizedArea=normalizeSessionArea(area);
  const expectedUserId=String(userId||'');
  const valid=x=>{
    const started=Number(x?.startedAt),expires=Number(x?.expiresAt);
    if(!Number.isFinite(started)||started<=0||!Number.isFinite(expires))return false;
-   // Another device may have just renewed this authoritative session a fraction
-   // later than this device's cached server-time estimate. Rules permit at most
-   // +60 s creation skew, so accept only that bounded future window.
-   if(started>now+60000)return false;
+   if(started>now)return false;
    if(normalizeSessionArea(x.area||x.lastArea)!==normalizedArea)return false;
    // A registered session must belong to this exact authenticated account.
    // Never inherit a guest or another user's session identity.
@@ -426,7 +440,7 @@ function sessionStateNext(current,area,now,userId){
    // Never inherit a legacy session beyond the fixed 24-hour maximum.
    return now<Math.min(expires,started+86400000);
  };
- let x=valid(current)?{...current}:{
+ let x=valid(current)?{...current}:valid(candidate)?{...candidate}:{
    startedAt:now,
    expiresAt:now+86400000,
    feeKopiyka:1,
@@ -452,9 +466,7 @@ function sessionStateNext(current,area,now,userId){
    userId:ownerId,
    area:normalizedArea,
    lastArea:normalizedArea,
-   // Two devices can have slightly different server-time estimates. Never move
-   // lastSeenAt backwards when a transaction retries against a newer active record.
-   lastSeenAt:Math.max(Number(x.lastSeenAt)||startedAt,now),
+   lastSeenAt:now,
    // Payment is not connected yet. Keep the state explicit and impossible to
    // mistake for a confirmed charge until a real provider callback verifies it.
    billingMode:'pilot',
@@ -465,10 +477,31 @@ function sessionStateNext(current,area,now,userId){
  };
 }
 
+async function recentActiveSession(userId,area,now){
+ if(!db||!userId)return null;
+ const normalizedArea=normalizeSessionArea(area);
+ try{
+   const snap=await db.ref('sessions/'+userId+'/'+normalizedArea).limitToLast(20).get();
+   let best=null;
+   snap.forEach(c=>{
+     const v=c.val();
+     const started=Number(v?.startedAt),expires=Number(v?.expiresAt);
+     const valid=v&&String(v.userId||'')===String(userId)
+       &&normalizeSessionArea(v.area||v.lastArea)===normalizedArea
+       &&Number.isFinite(started)&&started>0&&started<=now&&Number.isFinite(expires)
+       &&now<Math.min(expires,started+86400000);
+     if(valid&&(!best||started>Number(best.startedAt)))best=v;
+   });
+   return best;
+ }catch(e){return null}
+}
+
 async function openSession(area){
  const normalizedArea=normalizeSessionArea(area),userId=uid();
  const now=await firebaseAdjustedNow();
  const k=sessionKey(normalizedArea,userId||'guest');
+ let local=null;
+ try{local=JSON.parse(localStorage.getItem(k)||'null')}catch(e){localStorage.removeItem(k)}
 
  // A server-side session represents a registered Tak-2-Tak participant.
  // Never let an authenticated but stale/blocked/unaccepted account write it.
@@ -484,15 +517,13 @@ async function openSession(area){
    throw Error('Для відкриття сесії потрібна реєстрація та вхід');
  }
 
- // activeSessions is the single authoritative record for the current 24-hour
- // session in this area. History and localStorage are audit/cache only: they
- // must never resurrect an older session after the authoritative record expired
- // or disappeared.
+ const serverSession=await recentActiveSession(userId,normalizedArea,now);
+ const candidate=chooseSessionCandidate(serverSession,local,now,userId,normalizedArea);
  const activeRef=db.ref('activeSessions/'+userId+'/'+normalizedArea);
 
- // Two devices opening the SAME functional area at once converge atomically on
- // this one authoritative record. Different areas remain separate sessions.
- const tx=await activeRef.transaction(current=>sessionStateNext(current,normalizedArea,now,userId));
+ // Two devices opening the SAME functional area at once converge on one
+ // active 24-hour session. Different areas remain separate sessions.
+ const tx=await activeRef.transaction(current=>sessionStateNext(current,candidate,normalizedArea,now,userId));
  const x=tx.snapshot.val();
  if(!tx.committed||!x)throw Error('Не вдалося відкрити сесію');
 
@@ -501,75 +532,58 @@ async function openSession(area){
  const validResult=
    String(x.userId||'')===String(userId)&&
    normalizeSessionArea(x.area||x.lastArea)===normalizedArea&&
-   Number.isFinite(startedAt)&&startedAt>0&&startedAt<=now+60000&&
+   Number.isFinite(startedAt)&&startedAt>0&&startedAt<=now&&
    Number.isFinite(expiresAt)&&expiresAt===startedAt+86400000&&
    Number(x.feeKopiyka)===1&&
    String(x.sessionId||'')===expectedSessionId;
  if(!validResult)throw Error('Пошкоджений запис сесії. Запис у історію зупинено');
 
  const historyRef=db.ref('sessions/'+userId+'/'+normalizedArea+'/'+startedAt);
- // activeSessions is authoritative. Once that transaction has committed, a
- // temporary history/audit failure must not make the user pay/open a session
- // yet block the requested action. History is therefore best-effort here.
- try{
-   const historyTx=await historyRef.transaction(current=>{
-     if(auth?.currentUser?.uid!==userId)return;
-     if(!current)return x;
+ const historyTx=await historyRef.transaction(current=>{
+   if(auth?.currentUser?.uid!==userId)return;
+   if(!current)return x;
 
-     const currentStarted=Number(current.startedAt),currentExpires=Number(current.expiresAt);
-     const currentSessionId=String(current.sessionId||'');
-     const sameIdentity=
-       String(current.userId||'')===String(userId)&&
-       normalizeSessionArea(current.area||current.lastArea)===normalizedArea&&
-       currentStarted===startedAt&&
-       currentExpires===expiresAt&&
-       Number(current.feeKopiyka)===1&&
-       currentSessionId===expectedSessionId;
-     if(!sameIdentity)return;
+   const currentStarted=Number(current.startedAt),currentExpires=Number(current.expiresAt);
+   const currentSessionId=String(current.sessionId||'');
+   const sameIdentity=
+     String(current.userId||'')===String(userId)&&
+     normalizeSessionArea(current.area||current.lastArea)===normalizedArea&&
+     currentStarted===startedAt&&
+     currentExpires===expiresAt&&
+     Number(current.feeKopiyka)===1&&
+     currentSessionId===expectedSessionId;
+   if(!sameIdentity)return;
 
-     // Preserve any history fields that may have been added later while keeping
-     // the canonical session identity and immutable 1-kopiyka/24h rule.
-     return {
-       ...current,
-       ...x,
-       userId,
-       area:normalizedArea,
-       lastArea:normalizedArea,
-       startedAt,
-       expiresAt,
-       feeKopiyka:1,
-       sessionId:expectedSessionId,
-       // History is an immutable audit snapshot for this session identity.
-       // Re-entry updates activeSessions.lastSeenAt only; it must not rewrite
-       // the historical record and fail the Rules immutability check.
-       lastSeenAt:current.lastSeenAt
-     };
-   });
-   if(!historyTx.committed)console.warn('session history audit write skipped: identity/state mismatch');
- }catch(e){
-   console.warn('session history audit write failed after authoritative session opened',e);
- }
- try{
-   localStorage.setItem(sessionKey(normalizedArea,userId),JSON.stringify(x));
- }catch(e){
-   // localStorage is cache only. A full/blocked browser storage must never
-   // cancel a session that Firebase already opened successfully.
-   console.warn('session cache write failed after authoritative session opened',e);
- }
+   // Preserve any history fields that may have been added later while keeping
+   // the canonical session identity and immutable 1-kopiyka/24h rule.
+   return {
+     ...current,
+     ...x,
+     userId,
+     area:normalizedArea,
+     lastArea:normalizedArea,
+     startedAt,
+     expiresAt,
+     feeKopiyka:1,
+     sessionId:expectedSessionId
+   };
+ });
+ if(!historyTx.committed)throw Error('Запис історії сесії зупинено через зміну стану');
+ localStorage.setItem(sessionKey(normalizedArea,userId),JSON.stringify(x));
  return x;
 }
 const I18N={
- en:{'Публікацію зупинено: збережений запис не відповідає поточному запиту':'Publication stopped: the saved record does not match the current request.','Публікацію зупинено через зміну стану, змісту або невідповідність власника':'Publication stopped because its state, content, or owner no longer matches.','Активний акаунт змінився. Завершення зупинено.':'The active account changed. Completion was stopped.','Активний акаунт змінився. Вибір зупинено.':'The active account changed. Selection was stopped.','Публікацію зупинено через зміну стану або невідповідність власника':'Publication was stopped because the state changed or the owner did not match.','Створення профілю зупинено через зміну стану акаунта':'Profile creation was stopped because the account state changed.','Профіль цього акаунта вже існує. Повторний запис зупинено':'A profile for this account already exists. Duplicate write was stopped.','Створення профілю зупинено: акаунт заблоковано':'Profile creation was stopped: the account is blocked.','Запис історії сесії зупинено через зміну стану':'Session history write was stopped because the state changed.','Відновлення профілю зупинено через зміну стану акаунта':'Profile recovery was stopped because the account state changed.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'This account is blocked by the security system. Recovery was stopped.','Не вдалося відновити учасника в лічильнику':'The participant could not be restored in the counter.','Не вдалося зафіксувати учасника в лічильнику':'The participant could not be recorded in the counter.','Підтвердження зупинено: стан облікового запису змінився':'Confirmation was stopped because the account state changed.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'The provider\'s current rating could not be synchronized safely.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'The rating was confirmed in the rating log, but the request state has already changed. Automatic overwrite was stopped.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'The request state changed or the rating was already started/saved. Duplicate write was stopped.','Недозволений тип публікації':'Publication type is not allowed','Власник публікації не відповідає активному акаунту':'Publication owner does not match the active account','Обліковий запис не пройшов перевірку для публікації':'The account did not pass publication verification','Профіль реєстрації неповний. Повідомлення недоступні.':'Registration profile is incomplete. Notifications are unavailable.','Невідповідність облікового запису':'Account mismatch','Щоб бачити свої попити, підтвердьте робочий акаунт.':'To view your requests, verify your working account.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'To view responses, verify your working account.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'To view open requests, register, sign in, and verify your account.','Профіль акаунта не знайдено. Доступ закрито.':'Account profile not found. Access was closed.','Пошкоджений запис сесії. Запис у історію зупинено':'Corrupted session record. History write was stopped.','Не вдалося підтвердити обліковий запис для сесії':'The account could not be verified for the session','Для відкриття сесії потрібна реєстрація та вхід':'Registration and sign-in are required to open a session','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Account profile not found. Resending was stopped.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Registration profile is incomplete. Resending was stopped.','Виконавець зараз недоступний для нових виборів':'Provider is currently unavailable for new selections','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'The provider\'s current status could not be verified. Selection was stopped.','Цей виконавець зараз недоступний для нового вибору.':'This provider is currently unavailable for a new selection.','Виконавець недоступний':'Provider unavailable','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Account profile not found. Working actions are blocked.','Потрібне підтвердження правила сесії':'Session rule confirmation required','Погоджуюся з цим правилом Так-2-Так.':'I agree to this Tak-2-Tak rule.','Підтвердити правило':'Confirm rule','Поставте позначку, що погоджуєтеся з правилом сесії.':'Check the box to confirm that you agree to the session rule.','Правило сесії підтверджено.':'Session rule confirmed.','Не вдалося зберегти підтвердження:':'Could not save confirmation:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Confirm the session rule in your account: 1 kopeck, maximum 24 hours, no transaction commission.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Your price (optional). Specify the currency explicitly: 500 UAH, 20 EUR, 25 USD. The $ or ¥ symbol alone may be ambiguous.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Prices in different, unspecified, or ambiguous currencies do not affect TOP-3 until they can be compared fairly. For $ or ¥, specify the currency code, for example USD, CAD, AUD, JPY, or CNY.','Email підтверджено · особу ще не перевірено':'Email verified · identity not yet verified','Email і особу ще не перевірено':'Email and identity not yet verified','Особу / виконавця перевірено':'Identity / provider verified','Не перевірено':'Not verified','Напр. 500 грн або 20 EUR':'E.g. 500 UAH or 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Access to this account has been blocked by the security system.','Доступ заблоковано системою безпеки.':'Access has been blocked by the security system.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'The account security status could not be verified. The action was stopped.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'This account has been blocked by the security system. Recovery through registration is disabled.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'I agree to the Tak-2-Tak rule: 1 session = 1 kopeck, maximum 24 hours; no percentage of the deal and no hidden commissions.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Confirm the session rule: 1 kopeck, maximum 24 hours, no transaction commission.',
+ en:{'Активний акаунт змінився. Завершення зупинено.':'The active account changed. Completion was stopped.','Активний акаунт змінився. Вибір зупинено.':'The active account changed. Selection was stopped.','Публікацію зупинено через зміну стану або невідповідність власника':'Publication was stopped because the state changed or the owner did not match.','Створення профілю зупинено через зміну стану акаунта':'Profile creation was stopped because the account state changed.','Профіль цього акаунта вже існує. Повторний запис зупинено':'A profile for this account already exists. Duplicate write was stopped.','Створення профілю зупинено: акаунт заблоковано':'Profile creation was stopped: the account is blocked.','Запис історії сесії зупинено через зміну стану':'Session history write was stopped because the state changed.','Відновлення профілю зупинено через зміну стану акаунта':'Profile recovery was stopped because the account state changed.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'This account is blocked by the security system. Recovery was stopped.','Не вдалося відновити учасника в лічильнику':'The participant could not be restored in the counter.','Не вдалося зафіксувати учасника в лічильнику':'The participant could not be recorded in the counter.','Підтвердження зупинено: стан облікового запису змінився':'Confirmation was stopped because the account state changed.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'The provider\'s current rating could not be synchronized safely.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'The rating was confirmed in the rating log, but the request state has already changed. Automatic overwrite was stopped.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'The request state changed or the rating was already started/saved. Duplicate write was stopped.','Недозволений тип публікації':'Publication type is not allowed','Власник публікації не відповідає активному акаунту':'Publication owner does not match the active account','Обліковий запис не пройшов перевірку для публікації':'The account did not pass publication verification','Профіль реєстрації неповний. Повідомлення недоступні.':'Registration profile is incomplete. Notifications are unavailable.','Невідповідність облікового запису':'Account mismatch','Щоб бачити свої попити, підтвердьте робочий акаунт.':'To view your requests, verify your working account.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'To view responses, verify your working account.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'To view open requests, register, sign in, and verify your account.','Профіль акаунта не знайдено. Доступ закрито.':'Account profile not found. Access was closed.','Пошкоджений запис сесії. Запис у історію зупинено':'Corrupted session record. History write was stopped.','Не вдалося підтвердити обліковий запис для сесії':'The account could not be verified for the session','Для відкриття сесії потрібна реєстрація та вхід':'Registration and sign-in are required to open a session','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Account profile not found. Resending was stopped.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Registration profile is incomplete. Resending was stopped.','Виконавець зараз недоступний для нових виборів':'Provider is currently unavailable for new selections','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'The provider\'s current status could not be verified. Selection was stopped.','Цей виконавець зараз недоступний для нового вибору.':'This provider is currently unavailable for a new selection.','Виконавець недоступний':'Provider unavailable','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Account profile not found. Working actions are blocked.','Потрібне підтвердження правила сесії':'Session rule confirmation required','Погоджуюся з цим правилом Так-2-Так.':'I agree to this Tak-2-Tak rule.','Підтвердити правило':'Confirm rule','Поставте позначку, що погоджуєтеся з правилом сесії.':'Check the box to confirm that you agree to the session rule.','Правило сесії підтверджено.':'Session rule confirmed.','Не вдалося зберегти підтвердження:':'Could not save confirmation:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Confirm the session rule in your account: 1 kopeck, maximum 24 hours, no transaction commission.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Your price (optional). Specify the currency explicitly: 500 UAH, 20 EUR, 25 USD. The $ or ¥ symbol alone may be ambiguous.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Prices in different, unspecified, or ambiguous currencies do not affect TOP-3 until they can be compared fairly. For $ or ¥, specify the currency code, for example USD, CAD, AUD, JPY, or CNY.','Email підтверджено · особу ще не перевірено':'Email verified · identity not yet verified','Email і особу ще не перевірено':'Email and identity not yet verified','Особу / виконавця перевірено':'Identity / provider verified','Не перевірено':'Not verified','Напр. 500 грн або 20 EUR':'E.g. 500 UAH or 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Access to this account has been blocked by the security system.','Доступ заблоковано системою безпеки.':'Access has been blocked by the security system.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'The account security status could not be verified. The action was stopped.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'This account has been blocked by the security system. Recovery through registration is disabled.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'I agree to the Tak-2-Tak rule: 1 session = 1 kopeck, maximum 24 hours; no percentage of the deal and no hidden commissions.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Confirm the session rule: 1 kopeck, maximum 24 hours, no transaction commission.',
   'Чому реєстрація обов’язкова:':'Why registration is required:',
   'щоб перевіряти учасників, факти, виробників / виконавців і пропозиції та захищати чесних покупців і продавців. Дані потрібні для довіри й перевірки, а не для прихованих платежів.':'to verify participants, facts, manufacturers / providers and offers, and to protect honest buyers and sellers. The data is needed for trust and verification, not for hidden charges.',
   'Учасників:':'Participants:','Гість':'Guest','Напишіть будь-який запит':'Write any request','Знайти':'Search','Голос':'Voice','Джерела: перевірка…':'Sources: checking…','Пропозиція':'Offer','Попит':'Demand','Правило:':'Rule:','1 сесія = 1 копійка, максимум 24 години. Без відсотка з угоди й без прихованих комісій.':'1 session = 1 kopeck, maximum 24 hours. No percentage of the deal and no hidden commissions.','← Назад':'← Back','Обліковий запис':'Account','Вхід':'Sign in','Пароль':'Password','Увійти':'Sign in','Увімкнути сповіщення':'Enable notifications','Повідомлення':'Notifications','Увійдіть, щоб бачити повідомлення.':'Sign in to see notifications.','Реєстрація':'Registration','Прізвище *':'Surname *','Ім’я *':'First name *','По батькові':'Patronymic','Країна *':'Country *','Місто / населений пункт *':'City / locality *','Телефон *':'Phone *','Email *':'Email *','Пароль *':'Password *','Зареєструватися':'Register','Надіслати лист підтвердження ще раз':'Resend verification email','Вийти':'Sign out','Що потрібно? *':'What do you need? *','Моє місто':'My city','Місто / місце':'City / place','Коли потрібно?':'When is it needed?','Якнайшвидше':'As soon as possible','До 30 хвилин':'Within 30 minutes','До 1 години':'Within 1 hour','Сьогодні':'Today','Завтра':'Tomorrow','Опублікувати попит':'Publish demand','Що пропонуєте? *':'What do you offer? *','Ціна':'Price','Опублікувати пропозицію':'Publish offer','Живі попити':'Live demands','Завантаження…':'Loading…','Завантаження відповідей…':'Loading responses…','Відповісти':'Respond','Показати відповіді':'Show responses','Завершити':'Complete','Оцінити':'Rate','Обрати':'Choose','Відповідей ще немає.':'No responses yet.','Повідомлень ще немає.':'No notifications yet.','Позначити прочитаним':'Mark as read','НОВЕ':'NEW','Нове повідомлення':'New notification','Новий попит':'New demand','Нова відповідь':'New response','Вас обрано':'You were selected','Обрано іншого виконавця':'Another provider was selected','Завершено':'Completed','Ціна:':'Price:','Ціну не вказано':'Price not specified','Час:':'Time:','Рейтинг:':'Rating:','Відстань:':'Distance:','хв':'min','км':'km','ЗАВЕРШЕНО':'COMPLETED','ОБРАНО':'SELECTED','не обрано':'not selected','Немає активного облікового запису.':'No active account.','Попит не знайдено.':'Demand not found.','Цю угоду вже оцінено.':'This deal has already been rated.','Оцініть виконавця від 1 до 5:':'Rate the provider from 1 to 5:','Оцінку збережено.':'Rating saved.','Виконавця обрано.':'Provider selected.','Замовлення завершено':'Order completed','Немає з’єднання з Firebase.':'No connection to Firebase.','Немає Firebase.':'Firebase is unavailable.','Шукаю і перевіряю…':'Searching and verifying…','Немає підтвердженої відповіді':'No verified answer','Результату немає':'No result','Нічого підтвердженого не знайдено':'No verified result found','Сесію не відкрито':'Session was not opened','Створити попит':'Create demand','Створити пропозицію':'Create offer','Місце знайдено.':'Place found.','1 конкретна відповідь.':'1 specific answer.','Попит опубліковано.':'Demand published.','Пропозицію опубліковано.':'Offer published.','Відповідь надіслано.':'Response sent.','Сповіщення увімкнено.':'Notifications enabled.','Сповіщення заблоковані в браузері.':'Notifications are blocked in the browser.','Сповіщення ще не увімкнено.':'Notifications are not enabled yet.','Цей браузер не підтримує системні сповіщення.':'This browser does not support system notifications.','Спочатку увійдіть у свій обліковий запис.':'Sign in to your account first.','Email уже підтверджено.':'Email is already verified.','Лист підтвердження надіслано ще раз.':'Verification email sent again.','Ви вийшли.':'You signed out.','Реєструю…':'Registering…','Реєстрація створена. Перевірте email і підтвердьте адресу.':'Registration created. Check your email and verify the address.','Цей акаунт уже зареєстрований. Ви увійшли.':'This account is already registered. You are signed in.','Вхід виконано. Email підтверджено.':'Signed in. Email verified.','Вхід виконано. Email ще не підтверджено.':'Signed in. Email is not verified yet.','Профіль ще не створено або неповний.':'Profile has not been created yet or is incomplete.', 'новий рейтинг':'new rating','Координати:':'Coordinates:','Джерело: OpenStreetMap / Nominatim':'Source: OpenStreetMap / Nominatim','1 конкретна адреса на карті.':'1 specific address on the map.','Немає підтвердженої адреси':'No verified address','OpenStreetMap / Nominatim не підтвердив точне місце. Програма не підмінює точну адресу схожими варіантами.':'OpenStreetMap / Nominatim did not verify the exact place. The program does not replace an exact address with similar alternatives.','Точну адресу не підтверджено.':'The exact address was not verified.','1 конкретна адреса з підтвердженим номером будинку.':'1 specific address with a verified house number.','OpenStreetMap / Nominatim не підтвердив саме цей номер будинку. Програма не підмінює його лише вулицею або центром міста.':'OpenStreetMap / Nominatim did not verify this exact house number. The program does not replace it with only the street or city center.'
  },
- pl:{'Публікацію зупинено: збережений запис не відповідає поточному запиту':'Publikację zatrzymano: zapisany rekord nie odpowiada bieżącemu żądaniu.','Публікацію зупинено через зміну стану, змісту або невідповідність власника':'Publikację zatrzymano, ponieważ stan, treść lub właściciel już się nie zgadzają.','Активний акаунт змінився. Завершення зупинено.':'Aktywne konto się zmieniło. Zakończenie zatrzymano.','Активний акаунт змінився. Вибір зупинено.':'Aktywne konto się zmieniło. Wybór zatrzymano.','Публікацію зупинено через зміну стану або невідповідність власника':'Publikację zatrzymano z powodu zmiany stanu lub niezgodności właściciela.','Створення профілю зупинено через зміну стану акаунта':'Tworzenie profilu zatrzymano, ponieważ zmienił się stan konta.','Профіль цього акаунта вже існує. Повторний запис зупинено':'Profil dla tego konta już istnieje. Powtórny zapis zatrzymano.','Створення профілю зупинено: акаунт заблоковано':'Tworzenie profilu zatrzymano: konto jest zablokowane.','Запис історії сесії зупинено через зміну стану':'Zapis historii sesji zatrzymano, ponieważ zmienił się stan.','Відновлення профілю зупинено через зміну стану акаунта':'Odzyskiwanie profilu zatrzymano, ponieważ zmienił się stan konta.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'To konto jest zablokowane przez system bezpieczeństwa. Odzyskiwanie zatrzymano.','Не вдалося відновити учасника в лічильнику':'Nie udało się przywrócić uczestnika w liczniku.','Не вдалося зафіксувати учасника в лічильнику':'Nie udało się zapisać uczestnika w liczniku.','Підтвердження зупинено: стан облікового запису змінився':'Potwierdzenie zostało zatrzymane, ponieważ zmienił się stan konta.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'Nie udało się bezpiecznie zsynchronizować aktualnej oceny wykonawcy.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'Ocena została potwierdzona w rejestrze ocen, ale stan zapytania już się zmienił. Automatyczne nadpisanie zostało zatrzymane.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'Stan zapytania zmienił się albo ocena została już rozpoczęta/zapisana. Ponowny zapis został zatrzymany.','Недозволений тип публікації':'Niedozwolony typ publikacji','Власник публікації не відповідає активному акаунту':'Właściciel publikacji nie odpowiada aktywnemu kontu','Обліковий запис не пройшов перевірку для публікації':'Konto nie przeszło weryfikacji do publikacji','Профіль реєстрації неповний. Повідомлення недоступні.':'Profil rejestracyjny jest niepełny. Powiadomienia są niedostępne.','Невідповідність облікового запису':'Niezgodność konta','Щоб бачити свої попити, підтвердьте робочий акаунт.':'Aby zobaczyć swoje zapytania, potwierdź konto robocze.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'Aby zobaczyć odpowiedzi, potwierdź konto robocze.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'Aby zobaczyć otwarte zapytania, zarejestruj się, zaloguj i potwierdź konto.','Профіль акаунта не знайдено. Доступ закрито.':'Nie znaleziono profilu konta. Dostęp został zamknięty.','Пошкоджений запис сесії. Запис у історію зупинено':'Uszkodzony rekord sesji. Zapis do historii został zatrzymany.','Не вдалося підтвердити обліковий запис для сесії':'Nie udało się zweryfikować konta dla sesji','Для відкриття сесії потрібна реєстрація та вхід':'Do otwarcia sesji wymagana jest rejestracja i logowanie','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Nie znaleziono profilu konta. Ponowne wysłanie zostało zatrzymane.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Profil rejestracyjny jest niepełny. Ponowne wysłanie zostało zatrzymane.','Виконавець зараз недоступний для нових виборів':'Wykonawca jest obecnie niedostępny do nowych wyborów','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'Nie udało się sprawdzić aktualnego stanu wykonawcy. Wybór został zatrzymany.','Цей виконавець зараз недоступний для нового вибору.':'Ten wykonawca jest obecnie niedostępny do nowego wyboru.','Виконавець недоступний':'Wykonawca niedostępny','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Nie znaleziono profilu konta. Działania robocze są zablokowane.','Потрібне підтвердження правила сесії':'Wymagane potwierdzenie zasady sesji','Погоджуюся з цим правилом Так-2-Так.':'Zgadzam się z tą zasadą Tak-2-Tak.','Підтвердити правило':'Potwierdź zasadę','Поставте позначку, що погоджуєтеся з правилом сесії.':'Zaznacz pole, aby potwierdzić zgodę na zasadę sesji.','Правило сесії підтверджено.':'Zasada sesji została potwierdzona.','Не вдалося зберегти підтвердження:':'Nie udało się zapisać potwierdzenia:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Potwierdź zasadę sesji na koncie: 1 kopiejka, maksymalnie 24 godziny, bez prowizji od transakcji.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Twoja cena (opcjonalnie). Podaj walutę wprost: 500 UAH, 20 EUR, 25 USD. Sam symbol $ lub ¥ może być niejednoznaczny.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Ceny w różnych, niepodanych lub niejednoznacznych walutach nie wpływają na TOP-3, dopóki nie można ich uczciwie porównać. Dla $ lub ¥ podaj kod waluty, np. USD, CAD, AUD, JPY lub CNY.','Email підтверджено · особу ще не перевірено':'E-mail potwierdzony · tożsamość jeszcze niezweryfikowana','Email і особу ще не перевірено':'E-mail i tożsamość jeszcze niezweryfikowane','Особу / виконавця перевірено':'Tożsamość / wykonawca zweryfikowany','Не перевірено':'Niezweryfikowano','Напр. 500 грн або 20 EUR':'Np. 500 UAH lub 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Dostęp do tego konta został zablokowany przez system bezpieczeństwa.','Доступ заблоковано системою безпеки.':'Dostęp został zablokowany przez system bezpieczeństwa.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'Nie udało się sprawdzić stanu bezpieczeństwa konta. Działanie zostało zatrzymane.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'To konto zostało zablokowane przez system bezpieczeństwa. Odzyskiwanie przez rejestrację jest wyłączone.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'Zgadzam się z zasadą Tak-2-Tak: 1 sesja = 1 kopiejka, maksymalnie 24 godziny; bez procentu od transakcji i bez ukrytych prowizji.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Potwierdź zasadę sesji: 1 kopiejka, maksymalnie 24 godziny, bez prowizji od transakcji.',
+ pl:{'Активний акаунт змінився. Завершення зупинено.':'Aktywne konto się zmieniło. Zakończenie zatrzymano.','Активний акаунт змінився. Вибір зупинено.':'Aktywne konto się zmieniło. Wybór zatrzymano.','Публікацію зупинено через зміну стану або невідповідність власника':'Publikację zatrzymano z powodu zmiany stanu lub niezgodności właściciela.','Створення профілю зупинено через зміну стану акаунта':'Tworzenie profilu zatrzymano, ponieważ zmienił się stan konta.','Профіль цього акаунта вже існує. Повторний запис зупинено':'Profil dla tego konta już istnieje. Powtórny zapis zatrzymano.','Створення профілю зупинено: акаунт заблоковано':'Tworzenie profilu zatrzymano: konto jest zablokowane.','Запис історії сесії зупинено через зміну стану':'Zapis historii sesji zatrzymano, ponieważ zmienił się stan.','Відновлення профілю зупинено через зміну стану акаунта':'Odzyskiwanie profilu zatrzymano, ponieważ zmienił się stan konta.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'To konto jest zablokowane przez system bezpieczeństwa. Odzyskiwanie zatrzymano.','Не вдалося відновити учасника в лічильнику':'Nie udało się przywrócić uczestnika w liczniku.','Не вдалося зафіксувати учасника в лічильнику':'Nie udało się zapisać uczestnika w liczniku.','Підтвердження зупинено: стан облікового запису змінився':'Potwierdzenie zostało zatrzymane, ponieważ zmienił się stan konta.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'Nie udało się bezpiecznie zsynchronizować aktualnej oceny wykonawcy.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'Ocena została potwierdzona w rejestrze ocen, ale stan zapytania już się zmienił. Automatyczne nadpisanie zostało zatrzymane.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'Stan zapytania zmienił się albo ocena została już rozpoczęta/zapisana. Ponowny zapis został zatrzymany.','Недозволений тип публікації':'Niedozwolony typ publikacji','Власник публікації не відповідає активному акаунту':'Właściciel publikacji nie odpowiada aktywnemu kontu','Обліковий запис не пройшов перевірку для публікації':'Konto nie przeszło weryfikacji do publikacji','Профіль реєстрації неповний. Повідомлення недоступні.':'Profil rejestracyjny jest niepełny. Powiadomienia są niedostępne.','Невідповідність облікового запису':'Niezgodność konta','Щоб бачити свої попити, підтвердьте робочий акаунт.':'Aby zobaczyć swoje zapytania, potwierdź konto robocze.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'Aby zobaczyć odpowiedzi, potwierdź konto robocze.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'Aby zobaczyć otwarte zapytania, zarejestruj się, zaloguj i potwierdź konto.','Профіль акаунта не знайдено. Доступ закрито.':'Nie znaleziono profilu konta. Dostęp został zamknięty.','Пошкоджений запис сесії. Запис у історію зупинено':'Uszkodzony rekord sesji. Zapis do historii został zatrzymany.','Не вдалося підтвердити обліковий запис для сесії':'Nie udało się zweryfikować konta dla sesji','Для відкриття сесії потрібна реєстрація та вхід':'Do otwarcia sesji wymagana jest rejestracja i logowanie','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Nie znaleziono profilu konta. Ponowne wysłanie zostało zatrzymane.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Profil rejestracyjny jest niepełny. Ponowne wysłanie zostało zatrzymane.','Виконавець зараз недоступний для нових виборів':'Wykonawca jest obecnie niedostępny do nowych wyborów','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'Nie udało się sprawdzić aktualnego stanu wykonawcy. Wybór został zatrzymany.','Цей виконавець зараз недоступний для нового вибору.':'Ten wykonawca jest obecnie niedostępny do nowego wyboru.','Виконавець недоступний':'Wykonawca niedostępny','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Nie znaleziono profilu konta. Działania robocze są zablokowane.','Потрібне підтвердження правила сесії':'Wymagane potwierdzenie zasady sesji','Погоджуюся з цим правилом Так-2-Так.':'Zgadzam się z tą zasadą Tak-2-Tak.','Підтвердити правило':'Potwierdź zasadę','Поставте позначку, що погоджуєтеся з правилом сесії.':'Zaznacz pole, aby potwierdzić zgodę na zasadę sesji.','Правило сесії підтверджено.':'Zasada sesji została potwierdzona.','Не вдалося зберегти підтвердження:':'Nie udało się zapisać potwierdzenia:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Potwierdź zasadę sesji na koncie: 1 kopiejka, maksymalnie 24 godziny, bez prowizji od transakcji.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Twoja cena (opcjonalnie). Podaj walutę wprost: 500 UAH, 20 EUR, 25 USD. Sam symbol $ lub ¥ może być niejednoznaczny.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Ceny w różnych, niepodanych lub niejednoznacznych walutach nie wpływają na TOP-3, dopóki nie można ich uczciwie porównać. Dla $ lub ¥ podaj kod waluty, np. USD, CAD, AUD, JPY lub CNY.','Email підтверджено · особу ще не перевірено':'E-mail potwierdzony · tożsamość jeszcze niezweryfikowana','Email і особу ще не перевірено':'E-mail i tożsamość jeszcze niezweryfikowane','Особу / виконавця перевірено':'Tożsamość / wykonawca zweryfikowany','Не перевірено':'Niezweryfikowano','Напр. 500 грн або 20 EUR':'Np. 500 UAH lub 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Dostęp do tego konta został zablokowany przez system bezpieczeństwa.','Доступ заблоковано системою безпеки.':'Dostęp został zablokowany przez system bezpieczeństwa.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'Nie udało się sprawdzić stanu bezpieczeństwa konta. Działanie zostało zatrzymane.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'To konto zostało zablokowane przez system bezpieczeństwa. Odzyskiwanie przez rejestrację jest wyłączone.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'Zgadzam się z zasadą Tak-2-Tak: 1 sesja = 1 kopiejka, maksymalnie 24 godziny; bez procentu od transakcji i bez ukrytych prowizji.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Potwierdź zasadę sesji: 1 kopiejka, maksymalnie 24 godziny, bez prowizji od transakcji.',
   'Чому реєстрація обов’язкова:':'Dlaczego rejestracja jest obowiązkowa:',
   'щоб перевіряти учасників, факти, виробників / виконавців і пропозиції та захищати чесних покупців і продавців. Дані потрібні для довіри й перевірки, а не для прихованих платежів.':'aby weryfikować uczestników, fakty, producentów / wykonawców i oferty oraz chronić uczciwych kupujących i sprzedających. Dane są potrzebne do zaufania i weryfikacji, a nie do ukrytych opłat.',
   'Учасників:':'Uczestników:','Гість':'Gość','Напишіть будь-який запит':'Wpisz dowolne zapytanie','Знайти':'Szukaj','Голос':'Głos','Джерела: перевірка…':'Źródła: sprawdzanie…','Пропозиція':'Oferta','Попит':'Popyt','Правило:':'Zasada:','1 сесія = 1 копійка, максимум 24 години. Без відсотка з угоди й без прихованих комісій.':'1 sesja = 1 kopiejka, maksymalnie 24 godziny. Bez procentu od transakcji i bez ukrytych prowizji.','← Назад':'← Wstecz','Обліковий запис':'Konto','Вхід':'Logowanie','Пароль':'Hasło','Увійти':'Zaloguj','Увімкнути сповіщення':'Włącz powiadomienia','Повідомлення':'Powiadomienia','Увійдіть, щоб бачити повідомлення.':'Zaloguj się, aby zobaczyć powiadomienia.','Реєстрація':'Rejestracja','Прізвище *':'Nazwisko *','Ім’я *':'Imię *','По батькові':'Imię ojca','Країна *':'Kraj *','Місто / населений пункт *':'Miasto / miejscowość *','Телефон *':'Telefon *','Email *':'Email *','Пароль *':'Hasło *','Зареєструватися':'Zarejestruj','Надіслати лист підтвердження ще раз':'Wyślij ponownie e-mail weryfikacyjny','Вийти':'Wyloguj','Що потрібно? *':'Czego potrzebujesz? *','Моє місто':'Moje miasto','Місто / місце':'Miasto / miejsce','Коли потрібно?':'Kiedy potrzebne?','Якнайшвидше':'Jak najszybciej','До 30 хвилин':'Do 30 minut','До 1 години':'Do 1 godziny','Сьогодні':'Dzisiaj','Завтра':'Jutro','Опублікувати попит':'Opublikuj popyt','Що пропонуєте? *':'Co oferujesz? *','Ціна':'Cena','Опублікувати пропозицію':'Opublikuj ofertę','Живі попити':'Aktywne popyty','Завантаження…':'Ładowanie…','Завантаження відповідей…':'Ładowanie odpowiedzi…','Відповісти':'Odpowiedz','Показати відповіді':'Pokaż odpowiedzi','Завершити':'Zakończ','Оцінити':'Oceń','Обрати':'Wybierz','Відповідей ще немає.':'Brak odpowiedzi.','Повідомлень ще немає.':'Brak powiadomień.','Позначити прочитаним':'Oznacz jako przeczytane','НОВЕ':'NOWE','Нове повідомлення':'Nowe powiadomienie','Новий попит':'Nowy popyt','Нова відповідь':'Nowa odpowiedź','Вас обрано':'Wybrano Ciebie','Обрано іншого виконавця':'Wybrano innego wykonawcę','Завершено':'Zakończono','Ціна:':'Cena:','Ціну не вказано':'Nie podano ceny','Час:':'Czas:','Рейтинг:':'Ocena:','Відстань:':'Odległość:','хв':'min','км':'km','ЗАВЕРШЕНО':'ZAKOŃCZONE','ОБРАНО':'WYBRANO','не обрано':'nie wybrano','Немає активного облікового запису.':'Brak aktywnego konta.','Попит не знайдено.':'Nie znaleziono popytu.','Цю угоду вже оцінено.':'Ta transakcja została już oceniona.','Оцініть виконавця від 1 до 5:':'Oceń wykonawcę od 1 do 5:','Оцінку збережено.':'Ocena zapisana.','Виконавця обрано.':'Wykonawca wybrany.','Замовлення завершено':'Zamówienie zakończone','Немає з’єднання з Firebase.':'Brak połączenia z Firebase.','Немає Firebase.':'Firebase jest niedostępny.','Шукаю і перевіряю…':'Szukam i sprawdzam…','Немає підтвердженої відповіді':'Brak potwierdzonej odpowiedzi','Результату немає':'Brak wyniku','Нічого підтвердженого не знайдено':'Nie znaleziono potwierdzonego wyniku','Сесію не відкрито':'Sesja nie została otwarta','Створити попит':'Utwórz popyt','Створити пропозицію':'Utwórz ofertę','Місце знайдено.':'Miejsce znalezione.','1 конкретна відповідь.':'1 konkretna odpowiedź.','Попит опубліковано.':'Popyt opublikowany.','Пропозицію опубліковано.':'Oferta opublikowana.','Відповідь надіслано.':'Odpowiedź wysłana.','Сповіщення увімкнено.':'Powiadomienia włączone.','Сповіщення заблоковані в браузері.':'Powiadomienia są zablokowane w przeglądarce.','Сповіщення ще не увімкнено.':'Powiadomienia nie są jeszcze włączone.','Цей браузер не підтримує системні сповіщення.':'Ta przeglądarka nie obsługuje powiadomień systemowych.','Спочатку увійдіть у свій обліковий запис.':'Najpierw zaloguj się na swoje konto.','Email уже підтверджено.':'Email jest już zweryfikowany.','Лист підтвердження надіслано ще раз.':'E-mail weryfikacyjny wysłano ponownie.','Ви вийшли.':'Wylogowano.','Реєструю…':'Rejestracja…','Реєстрація створена. Перевірте email і підтвердьте адресу.':'Rejestracja utworzona. Sprawdź e-mail i potwierdź adres.','Цей акаунт уже зареєстрований. Ви увійшли.':'To konto jest już zarejestrowane. Zalogowano.','Вхід виконано. Email підтверджено.':'Zalogowano. Email zweryfikowany.','Вхід виконано. Email ще не підтверджено.':'Zalogowano. Email nie jest jeszcze zweryfikowany.','Профіль ще не створено або неповний.':'Profil nie został jeszcze utworzony lub jest niekompletny.', 'новий рейтинг':'nowa ocena','Координати:':'Współrzędne:','Джерело: OpenStreetMap / Nominatim':'Źródło: OpenStreetMap / Nominatim','1 конкретна адреса на карті.':'1 konkretny adres na mapie.','Немає підтвердженої адреси':'Brak zweryfikowanego adresu','OpenStreetMap / Nominatim не підтвердив точне місце. Програма не підмінює точну адресу схожими варіантами.':'OpenStreetMap / Nominatim nie potwierdził dokładnego miejsca. Program nie zastępuje dokładnego adresu podobnymi wariantami.','Точну адресу не підтверджено.':'Dokładny adres nie został potwierdzony.','1 конкретна адреса з підтвердженим номером будинку.':'1 konkretny adres z potwierdzonym numerem budynku.','OpenStreetMap / Nominatim не підтвердив саме цей номер будинку. Програма не підмінює його лише вулицею або центром міста.':'OpenStreetMap / Nominatim nie potwierdził dokładnie tego numeru budynku. Program nie zastępuje go samą ulicą ani centrum miasta.'
  },
- de:{'Публікацію зупинено: збережений запис не відповідає поточному запиту':'Die Veröffentlichung wurde gestoppt: Der gespeicherte Datensatz entspricht nicht der aktuellen Anfrage.','Публікацію зупинено через зміну стану, змісту або невідповідність власника':'Die Veröffentlichung wurde gestoppt, weil Status, Inhalt oder Eigentümer nicht mehr übereinstimmen.','Активний акаунт змінився. Завершення зупинено.':'Das aktive Konto hat sich geändert. Der Abschluss wurde gestoppt.','Активний акаунт змінився. Вибір зупинено.':'Das aktive Konto hat sich geändert. Die Auswahl wurde gestoppt.','Публікацію зупинено через зміну стану або невідповідність власника':'Die Veröffentlichung wurde wegen einer Statusänderung oder eines Eigentümerkonflikts gestoppt.','Створення профілю зупинено через зміну стану акаунта':'Die Profilerstellung wurde gestoppt, weil sich der Kontostatus geändert hat.','Профіль цього акаунта вже існує. Повторний запис зупинено':'Für dieses Konto existiert bereits ein Profil. Der doppelte Schreibvorgang wurde gestoppt.','Створення профілю зупинено: акаунт заблоковано':'Die Profilerstellung wurde gestoppt: Das Konto ist gesperrt.','Запис історії сесії зупинено через зміну стану':'Das Schreiben des Sitzungsverlaufs wurde gestoppt, weil sich der Status geändert hat.','Відновлення профілю зупинено через зміну стану акаунта':'Die Profilwiederherstellung wurde gestoppt, weil sich der Kontostatus geändert hat.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'Dieses Konto ist durch das Sicherheitssystem gesperrt. Die Wiederherstellung wurde gestoppt.','Не вдалося відновити учасника в лічильнику':'Der Teilnehmer konnte nicht im Zähler wiederhergestellt werden.','Не вдалося зафіксувати учасника в лічильнику':'Der Teilnehmer konnte nicht im Zähler erfasst werden.','Підтвердження зупинено: стан облікового запису змінився':'Die Bestätigung wurde gestoppt, weil sich der Kontostatus geändert hat.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'Die aktuelle Bewertung des Anbieters konnte nicht sicher synchronisiert werden.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'Die Bewertung wurde im Bewertungsprotokoll bestätigt, aber der Anfragestatus hat sich bereits geändert. Das automatische Überschreiben wurde gestoppt.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'Der Anfragestatus hat sich geändert oder die Bewertung wurde bereits begonnen/gespeichert. Der erneute Schreibvorgang wurde gestoppt.','Недозволений тип публікації':'Unzulässiger Veröffentlichungstyp','Власник публікації не відповідає активному акаунту':'Der Eigentümer der Veröffentlichung stimmt nicht mit dem aktiven Konto überein','Обліковий запис не пройшов перевірку для публікації':'Das Konto hat die Veröffentlichungsprüfung nicht bestanden','Профіль реєстрації неповний. Повідомлення недоступні.':'Das Registrierungsprofil ist unvollständig. Benachrichtigungen sind nicht verfügbar.','Невідповідність облікового запису':'Kontozuordnung stimmt nicht','Щоб бачити свої попити, підтвердьте робочий акаунт.':'Um Ihre Anfragen zu sehen, bestätigen Sie Ihr Arbeitskonto.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'Um Antworten zu sehen, bestätigen Sie Ihr Arbeitskonto.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'Um offene Anfragen zu sehen, registrieren Sie sich, melden Sie sich an und bestätigen Sie Ihr Konto.','Профіль акаунта не знайдено. Доступ закрито.':'Kontoprofil nicht gefunden. Der Zugriff wurde geschlossen.','Пошкоджений запис сесії. Запис у історію зупинено':'Beschädigter Sitzungsdatensatz. Das Schreiben in den Verlauf wurde gestoppt.','Не вдалося підтвердити обліковий запис для сесії':'Das Konto konnte für die Sitzung nicht bestätigt werden','Для відкриття сесії потрібна реєстрація та вхід':'Für das Öffnen einer Sitzung sind Registrierung und Anmeldung erforderlich','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Kontoprofil nicht gefunden. Erneutes Senden wurde gestoppt.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Registrierungsprofil ist unvollständig. Erneutes Senden wurde gestoppt.','Виконавець зараз недоступний для нових виборів':'Anbieter ist derzeit für neue Auswahlen nicht verfügbar','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'Der aktuelle Status des Anbieters konnte nicht geprüft werden. Die Auswahl wurde gestoppt.','Цей виконавець зараз недоступний для нового вибору.':'Dieser Anbieter ist derzeit für eine neue Auswahl nicht verfügbar.','Виконавець недоступний':'Anbieter nicht verfügbar','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Kontoprofil nicht gefunden. Arbeitsaktionen sind gesperrt.','Потрібне підтвердження правила сесії':'Bestätigung der Sitzungsregel erforderlich','Погоджуюся з цим правилом Так-2-Так.':'Ich stimme dieser Tak-2-Tak-Regel zu.','Підтвердити правило':'Regel bestätigen','Поставте позначку, що погоджуєтеся з правилом сесії.':'Markieren Sie das Kästchen, um der Sitzungsregel zuzustimmen.','Правило сесії підтверджено.':'Sitzungsregel bestätigt.','Не вдалося зберегти підтвердження:':'Bestätigung konnte nicht gespeichert werden:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Bestätigen Sie die Sitzungsregel im Konto: 1 Kopeke, maximal 24 Stunden, keine Transaktionsprovision.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Ihr Preis (optional). Geben Sie die Währung ausdrücklich an: 500 UAH, 20 EUR, 25 USD. Das Zeichen $ oder ¥ allein kann mehrdeutig sein.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Preise in unterschiedlichen, nicht angegebenen oder mehrdeutigen Währungen beeinflussen TOP-3 nicht, solange sie nicht fair vergleichbar sind. Bei $ oder ¥ den Währungscode angeben, z. B. USD, CAD, AUD, JPY oder CNY.','Email підтверджено · особу ще не перевірено':'E-Mail bestätigt · Identität noch nicht verifiziert','Email і особу ще не перевірено':'E-Mail und Identität noch nicht verifiziert','Особу / виконавця перевірено':'Identität / Anbieter verifiziert','Не перевірено':'Nicht verifiziert','Напр. 500 грн або 20 EUR':'Z. B. 500 UAH oder 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Der Zugriff auf dieses Konto wurde vom Sicherheitssystem gesperrt.','Доступ заблоковано системою безпеки.':'Der Zugriff wurde vom Sicherheitssystem gesperrt.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'Der Sicherheitsstatus des Kontos konnte nicht geprüft werden. Die Aktion wurde gestoppt.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'Dieses Konto wurde vom Sicherheitssystem gesperrt. Wiederherstellung über die Registrierung ist deaktiviert.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'Ich stimme der Tak-2-Tak-Regel zu: 1 Sitzung = 1 Kopeke, maximal 24 Stunden; kein Prozentsatz vom Geschäft und keine versteckten Gebühren.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Bestätigen Sie die Sitzungsregel: 1 Kopeke, maximal 24 Stunden, keine Transaktionsprovision.',
+ de:{'Активний акаунт змінився. Завершення зупинено.':'Das aktive Konto hat sich geändert. Der Abschluss wurde gestoppt.','Активний акаунт змінився. Вибір зупинено.':'Das aktive Konto hat sich geändert. Die Auswahl wurde gestoppt.','Публікацію зупинено через зміну стану або невідповідність власника':'Die Veröffentlichung wurde wegen einer Statusänderung oder eines Eigentümerkonflikts gestoppt.','Створення профілю зупинено через зміну стану акаунта':'Die Profilerstellung wurde gestoppt, weil sich der Kontostatus geändert hat.','Профіль цього акаунта вже існує. Повторний запис зупинено':'Für dieses Konto existiert bereits ein Profil. Der doppelte Schreibvorgang wurde gestoppt.','Створення профілю зупинено: акаунт заблоковано':'Die Profilerstellung wurde gestoppt: Das Konto ist gesperrt.','Запис історії сесії зупинено через зміну стану':'Das Schreiben des Sitzungsverlaufs wurde gestoppt, weil sich der Status geändert hat.','Відновлення профілю зупинено через зміну стану акаунта':'Die Profilwiederherstellung wurde gestoppt, weil sich der Kontostatus geändert hat.','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.':'Dieses Konto ist durch das Sicherheitssystem gesperrt. Die Wiederherstellung wurde gestoppt.','Не вдалося відновити учасника в лічильнику':'Der Teilnehmer konnte nicht im Zähler wiederhergestellt werden.','Не вдалося зафіксувати учасника в лічильнику':'Der Teilnehmer konnte nicht im Zähler erfasst werden.','Підтвердження зупинено: стан облікового запису змінився':'Die Bestätigung wurde gestoppt, weil sich der Kontostatus geändert hat.','Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.':'Die aktuelle Bewertung des Anbieters konnte nicht sicher synchronisiert werden.','Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.':'Die Bewertung wurde im Bewertungsprotokoll bestätigt, aber der Anfragestatus hat sich bereits geändert. Das automatische Überschreiben wurde gestoppt.','Стан попиту змінився або оцінку вже почато/збережено. Повторний запис зупинено.':'Der Anfragestatus hat sich geändert oder die Bewertung wurde bereits begonnen/gespeichert. Der erneute Schreibvorgang wurde gestoppt.','Недозволений тип публікації':'Unzulässiger Veröffentlichungstyp','Власник публікації не відповідає активному акаунту':'Der Eigentümer der Veröffentlichung stimmt nicht mit dem aktiven Konto überein','Обліковий запис не пройшов перевірку для публікації':'Das Konto hat die Veröffentlichungsprüfung nicht bestanden','Профіль реєстрації неповний. Повідомлення недоступні.':'Das Registrierungsprofil ist unvollständig. Benachrichtigungen sind nicht verfügbar.','Невідповідність облікового запису':'Kontozuordnung stimmt nicht','Щоб бачити свої попити, підтвердьте робочий акаунт.':'Um Ihre Anfragen zu sehen, bestätigen Sie Ihr Arbeitskonto.','Щоб бачити відповіді, підтвердьте робочий акаунт.':'Um Antworten zu sehen, bestätigen Sie Ihr Arbeitskonto.','Щоб бачити відкриті попити, зареєструйтеся, увійдіть і підтвердьте акаунт.':'Um offene Anfragen zu sehen, registrieren Sie sich, melden Sie sich an und bestätigen Sie Ihr Konto.','Профіль акаунта не знайдено. Доступ закрито.':'Kontoprofil nicht gefunden. Der Zugriff wurde geschlossen.','Пошкоджений запис сесії. Запис у історію зупинено':'Beschädigter Sitzungsdatensatz. Das Schreiben in den Verlauf wurde gestoppt.','Не вдалося підтвердити обліковий запис для сесії':'Das Konto konnte für die Sitzung nicht bestätigt werden','Для відкриття сесії потрібна реєстрація та вхід':'Für das Öffnen einer Sitzung sind Registrierung und Anmeldung erforderlich','Профіль акаунта не знайдено. Повторне надсилання зупинено.':'Kontoprofil nicht gefunden. Erneutes Senden wurde gestoppt.','Профіль реєстрації неповний. Повторне надсилання зупинено.':'Registrierungsprofil ist unvollständig. Erneutes Senden wurde gestoppt.','Виконавець зараз недоступний для нових виборів':'Anbieter ist derzeit für neue Auswahlen nicht verfügbar','Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.':'Der aktuelle Status des Anbieters konnte nicht geprüft werden. Die Auswahl wurde gestoppt.','Цей виконавець зараз недоступний для нового вибору.':'Dieser Anbieter ist derzeit für eine neue Auswahl nicht verfügbar.','Виконавець недоступний':'Anbieter nicht verfügbar','Профіль акаунта не знайдено. Робочі дії заблоковано.':'Kontoprofil nicht gefunden. Arbeitsaktionen sind gesperrt.','Потрібне підтвердження правила сесії':'Bestätigung der Sitzungsregel erforderlich','Погоджуюся з цим правилом Так-2-Так.':'Ich stimme dieser Tak-2-Tak-Regel zu.','Підтвердити правило':'Regel bestätigen','Поставте позначку, що погоджуєтеся з правилом сесії.':'Markieren Sie das Kästchen, um der Sitzungsregel zuzustimmen.','Правило сесії підтверджено.':'Sitzungsregel bestätigt.','Не вдалося зберегти підтвердження:':'Bestätigung konnte nicht gespeichert werden:','Підтвердіть правило сесії в обліковому записі: 1 копійка, максимум 24 години, без комісії з угоди.':'Bestätigen Sie die Sitzungsregel im Konto: 1 Kopeke, maximal 24 Stunden, keine Transaktionsprovision.','Ваша ціна (необов’язково). Вкажіть валюту явно: 500 грн, 20 EUR, 25 USD. Сам знак $ або ¥ може бути неоднозначним.':'Ihr Preis (optional). Geben Sie die Währung ausdrücklich an: 500 UAH, 20 EUR, 25 USD. Das Zeichen $ oder ¥ allein kann mehrdeutig sein.','Ціни в різних, невказаних або неоднозначних валютах не впливають на TOP-3, доки їх не можна чесно порівняти. Для $ або ¥ вкажіть код валюти, наприклад USD, CAD, AUD, JPY або CNY.':'Preise in unterschiedlichen, nicht angegebenen oder mehrdeutigen Währungen beeinflussen TOP-3 nicht, solange sie nicht fair vergleichbar sind. Bei $ oder ¥ den Währungscode angeben, z. B. USD, CAD, AUD, JPY oder CNY.','Email підтверджено · особу ще не перевірено':'E-Mail bestätigt · Identität noch nicht verifiziert','Email і особу ще не перевірено':'E-Mail und Identität noch nicht verifiziert','Особу / виконавця перевірено':'Identität / Anbieter verifiziert','Не перевірено':'Nicht verifiziert','Напр. 500 грн або 20 EUR':'Z. B. 500 UAH oder 20 EUR','Доступ до цього акаунта заблоковано системою безпеки.':'Der Zugriff auf dieses Konto wurde vom Sicherheitssystem gesperrt.','Доступ заблоковано системою безпеки.':'Der Zugriff wurde vom Sicherheitssystem gesperrt.','Не вдалося перевірити стан безпеки акаунта. Дію зупинено.':'Der Sicherheitsstatus des Kontos konnte nicht geprüft werden. Die Aktion wurde gestoppt.','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.':'Dieses Konto wurde vom Sicherheitssystem gesperrt. Wiederherstellung über die Registrierung ist deaktiviert.','Погоджуюся з правилом Так-2-Так: 1 сесія = 1 копійка, максимум 24 години; без відсотка з угоди та без прихованих комісій.':'Ich stimme der Tak-2-Tak-Regel zu: 1 Sitzung = 1 Kopeke, maximal 24 Stunden; kein Prozentsatz vom Geschäft und keine versteckten Gebühren.','Підтвердіть правило сесії: 1 копійка, максимум 24 години, без комісії з угоди.':'Bestätigen Sie die Sitzungsregel: 1 Kopeke, maximal 24 Stunden, keine Transaktionsprovision.',
   'Чому реєстрація обов’язкова:':'Warum die Registrierung erforderlich ist:',
   'щоб перевіряти учасників, факти, виробників / виконавців і пропозиції та захищати чесних покупців і продавців. Дані потрібні для довіри й перевірки, а не для прихованих платежів.':'um Teilnehmer, Fakten, Hersteller / Anbieter und Angebote zu prüfen und ehrliche Käufer und Verkäufer zu schützen. Die Daten dienen Vertrauen und Prüfung, nicht versteckten Gebühren.',
   'Учасників:':'Teilnehmer:','Гість':'Gast','Напишіть будь-який запит':'Beliebige Anfrage eingeben','Знайти':'Suchen','Голос':'Sprache','Джерела: перевірка…':'Quellen: Prüfung…','Пропозиція':'Angebot','Попит':'Bedarf','Правило:':'Regel:','1 сесія = 1 копійка, максимум 24 години. Без відсотка з угоди й без прихованих комісій.':'1 Sitzung = 1 Kopeke, maximal 24 Stunden. Kein Prozentsatz vom Geschäft und keine versteckten Gebühren.','← Назад':'← Zurück','Обліковий запис':'Konto','Вхід':'Anmeldung','Пароль':'Passwort','Увійти':'Anmelden','Увімкнути сповіщення':'Benachrichtigungen aktivieren','Повідомлення':'Benachrichtigungen','Увійдіть, щоб бачити повідомлення.':'Melden Sie sich an, um Benachrichtigungen zu sehen.','Реєстрація':'Registrierung','Прізвище *':'Nachname *','Ім’я *':'Vorname *','По батькові':'Vatersname','Країна *':'Land *','Місто / населений пункт *':'Stadt / Ort *','Телефон *':'Telefon *','Email *':'E-Mail *','Пароль *':'Passwort *','Зареєструватися':'Registrieren','Надіслати лист підтвердження ще раз':'Bestätigungs-E-Mail erneut senden','Вийти':'Abmelden','Що потрібно? *':'Was wird benötigt? *','Моє місто':'Meine Stadt','Місто / місце':'Stadt / Ort','Коли потрібно?':'Wann benötigt?','Якнайшвидше':'So schnell wie möglich','До 30 хвилин':'Innerhalb von 30 Minuten','До 1 години':'Innerhalb von 1 Stunde','Сьогодні':'Heute','Завтра':'Morgen','Опублікувати попит':'Bedarf veröffentlichen','Що пропонуєте? *':'Was bieten Sie an? *','Ціна':'Preis','Опублікувати пропозицію':'Angebot veröffentlichen','Живі попити':'Aktuelle Bedarfe','Завантаження…':'Laden…','Завантаження відповідей…':'Antworten werden geladen…','Відповісти':'Antworten','Показати відповіді':'Antworten anzeigen','Завершити':'Abschließen','Оцінити':'Bewerten','Обрати':'Auswählen','Відповідей ще немає.':'Noch keine Antworten.','Повідомлень ще немає.':'Noch keine Benachrichtigungen.','Позначити прочитаним':'Als gelesen markieren','НОВЕ':'NEU','Нове повідомлення':'Neue Benachrichtigung','Новий попит':'Neuer Bedarf','Нова відповідь':'Neue Antwort','Вас обрано':'Sie wurden ausgewählt','Обрано іншого виконавця':'Ein anderer Anbieter wurde ausgewählt','Завершено':'Abgeschlossen','Ціна:':'Preis:','Ціну не вказано':'Kein Preis angegeben','Час:':'Zeit:','Рейтинг:':'Bewertung:','Відстань:':'Entfernung:','хв':'Min.','км':'km','ЗАВЕРШЕНО':'ABGESCHLOSSEN','ОБРАНО':'AUSGEWÄHLT','не обрано':'nicht ausgewählt','Немає активного облікового запису.':'Kein aktives Konto.','Попит не знайдено.':'Bedarf nicht gefunden.','Цю угоду вже оцінено.':'Dieses Geschäft wurde bereits bewertet.','Оцініть виконавця від 1 до 5:':'Bewerten Sie den Anbieter von 1 bis 5:','Оцінку збережено.':'Bewertung gespeichert.','Виконавця обрано.':'Anbieter ausgewählt.','Замовлення завершено':'Auftrag abgeschlossen','Немає з’єднання з Firebase.':'Keine Verbindung zu Firebase.','Немає Firebase.':'Firebase ist nicht verfügbar.','Шукаю і перевіряю…':'Suche und prüfe…','Немає підтвердженої відповіді':'Keine bestätigte Antwort','Результату немає':'Kein Ergebnis','Нічого підтвердженого не знайдено':'Kein bestätigtes Ergebnis gefunden','Сесію не відкрито':'Sitzung wurde nicht geöffnet','Створити попит':'Bedarf erstellen','Створити пропозицію':'Angebot erstellen','Місце знайдено.':'Ort gefunden.','1 конкретна відповідь.':'1 konkrete Antwort.','Попит опубліковано.':'Bedarf veröffentlicht.','Пропозицію опубліковано.':'Angebot veröffentlicht.','Відповідь надіслано.':'Antwort gesendet.','Сповіщення увімкнено.':'Benachrichtigungen aktiviert.','Сповіщення заблоковані в браузері.':'Benachrichtigungen sind im Browser blockiert.','Сповіщення ще не увімкнено.':'Benachrichtigungen sind noch nicht aktiviert.','Цей браузер не підтримує системні сповіщення.':'Dieser Browser unterstützt keine Systembenachrichtigungen.','Спочатку увійдіть у свій обліковий запис.':'Melden Sie sich zuerst bei Ihrem Konto an.','Email уже підтверджено.':'E-Mail ist bereits bestätigt.','Лист підтвердження надіслано ще раз.':'Bestätigungs-E-Mail wurde erneut gesendet.','Ви вийшли.':'Sie wurden abgemeldet.','Реєструю…':'Registrierung…','Реєстрація створена. Перевірте email і підтвердьте адресу.':'Registrierung erstellt. Prüfen Sie Ihre E-Mail und bestätigen Sie die Adresse.','Цей акаунт уже зареєстрований. Ви увійшли.':'Dieses Konto ist bereits registriert. Sie sind angemeldet.','Вхід виконано. Email підтверджено.':'Angemeldet. E-Mail bestätigt.','Вхід виконано. Email ще не підтверджено.':'Angemeldet. E-Mail noch nicht bestätigt.','Профіль ще не створено або неповний.':'Profil wurde noch nicht erstellt oder ist unvollständig.', 'новий рейтинг':'neue Bewertung','Координати:':'Koordinaten:','Джерело: OpenStreetMap / Nominatim':'Quelle: OpenStreetMap / Nominatim','1 конкретна адреса на карті.':'1 konkrete Adresse auf der Karte.','Немає підтвердженої адреси':'Keine bestätigte Adresse','OpenStreetMap / Nominatim не підтвердив точне місце. Програма не підмінює точну адресу схожими варіантами.':'OpenStreetMap / Nominatim hat den genauen Ort nicht bestätigt. Das Programm ersetzt eine genaue Adresse nicht durch ähnliche Alternativen.','Точну адресу не підтверджено.':'Die genaue Adresse wurde nicht bestätigt.','1 конкретна адреса з підтвердженим номером будинку.':'1 konkrete Adresse mit bestätigter Hausnummer.','OpenStreetMap / Nominatim не підтвердив саме цей номер будинку. Програма не підмінює його лише вулицею або центром міста.':'OpenStreetMap / Nominatim hat genau diese Hausnummer nicht bestätigt. Das Programm ersetzt sie nicht nur durch die Straße oder das Stadtzentrum.'
@@ -577,11 +591,7 @@ const I18N={
 };
 
 const I18N_ORIGINAL=new WeakMap();
-function uiLang(){
- let saved='';
- try{saved=localStorage.getItem('t2t_lang')||''}catch(e){}
- return $('lang')?.value||saved||'uk';
-}
+function uiLang(){return ($('lang')?.value||localStorage.getItem('t2t_lang')||'uk')}
 function trText(value,lang=uiLang()){
  const s=String(value??'');
  if(lang==='uk'||!I18N[lang])return s;
@@ -640,19 +650,16 @@ window.confirm=(m)=>nativeConfirm(trText(m));
 
 function applyLang(){
  const l=$('lang').value;
- try{localStorage.setItem('t2t_lang',l)}catch(e){console.warn('language preference cache unavailable',e)}
+ localStorage.setItem('t2t_lang',l);
  translateDocument(l);
  startI18nObserver();
 }
-let savedUiLang='';
-try{savedUiLang=localStorage.getItem('t2t_lang')||''}catch(e){console.warn('language preference cache read failed',e)}
-$('lang').value=savedUiLang||((navigator.language||'uk').slice(0,2));
+$('lang').value=localStorage.getItem('t2t_lang')||((navigator.language||'uk').slice(0,2));
 if(!['uk','en','pl','de'].includes($('lang').value))$('lang').value='uk';
 applyLang();
 
 auth?.onAuthStateChanged(async u=>{
  currentUser=u||null;currentProfile=null;
- startParticipantCounterListener(u||null);
  $('authChip').textContent=u?u.email:'Гість';$('logoutBtn').classList.toggle('hidden',!u);
  stopProfileSecurityWatch();
  stopNotificationsListener();
@@ -681,16 +688,12 @@ auth?.onAuthStateChanged(async u=>{
        // Do not migrate legacy anonymous sessions into a registered account:
        // registration is mandatory and old guest activity must not become a fee record.
        await syncEmailVerification(u);
-       if(auth?.currentUser?.uid===u.uid&&currentProfile){
-         await syncOwnPublicProfile(currentProfile,u.uid).catch(e=>console.warn('public profile sync failed',e));
-       }
 
        ['country','city','phone'].forEach(k=>{if($(k)&&currentProfile[k])$(k).value=currentProfile[k]});
        if(document.getElementById('notificationStatus')&&'Notification'in window){
          document.getElementById('notificationStatus').textContent=Notification.permission==='granted'?'Сповіщення увімкнено.':Notification.permission==='denied'?'Сповіщення заблоковані в браузері.':'Сповіщення ще не увімкнено.';
        }
        await listenNotifications(u.uid);
-       await startMatchingDemandWatch(u.uid);
        if(document.getElementById('account')?.classList.contains('active'))await loadNotificationInbox();
      }else{
        console.warn('auth user has incomplete or missing profile',u.uid);
@@ -702,6 +705,9 @@ auth?.onAuthStateChanged(async u=>{
    if($('notificationInbox'))$('notificationInbox').innerHTML='<div class="muted small">Увійдіть, щоб бачити повідомлення.</div>';
  }
 });
+if(db){db.ref('stats/users').on('value',s=>{$('counter').textContent='Учасників: '+(s.val()||0)})}
+
+
 async function syncEmailVerification(user){
  if(!user||!db||auth?.currentUser?.uid!==user.uid)return false;
  try{await user.reload()}catch(e){
@@ -709,16 +715,7 @@ async function syncEmailVerification(user){
    return false;
  }
  const verified=!!user.emailVerified;
- // Realtime Database Security Rules evaluate auth.token from the Firebase ID
- // token. After email verification, force-refresh that token before writing the
- // mirrored emailVerified flag, otherwise Rules may still see the old claim.
- try{await user.getIdToken(true)}catch(e){
-   console.warn('verification token refresh failed',e);
-   return false;
- }
- if(auth?.currentUser?.uid!==user.uid)return false;
  const userRef=db.ref('users/'+user.uid);
- const verificationCheckedAt=await firebaseAdjustedNow();
  let tx=null;
  try{
    tx=await userRef.transaction(current=>{
@@ -729,7 +726,7 @@ async function syncEmailVerification(user){
      return {
        ...current,
        emailVerified:verified,
-       verificationCheckedAt
+       verificationCheckedAt:Date.now()
      };
    });
  }catch(e){
@@ -776,7 +773,7 @@ async function syncEmailVerification(user){
 
 async function recordVerificationSent(userId){
  if(!db||!userId||auth?.currentUser?.uid!==userId)return false;
- const ref=db.ref('users/'+userId),verificationSentAt=await firebaseAdjustedNow();
+ const ref=db.ref('users/'+userId),verificationSentAt=Date.now();
  const tx=await ref.transaction(current=>{
    if(auth?.currentUser?.uid!==userId||
       !current||
@@ -852,7 +849,6 @@ async function logoutUser(){
    stopProfileSecurityWatch();
    stopNotificationsListener();
    stopLiveDemandsListener();
-   stopMatchingDemandWatch();
    await auth.signOut();
    status('loginStatus','Ви вийшли.','good');
  }catch(e){
@@ -863,102 +859,39 @@ async function logoutUser(){
 function profileComplete(p){
  return !!(p&&p.surname&&p.name&&p.country&&p.city&&p.phone&&p.email);
 }
-function publicProfileActive(p){
- return !!(p&&p.active===true);
-}
-function publicProfileFromPrivate(profile,userId,existing=null,updatedAt=null){
- const old=existing&&typeof existing==='object'?existing:{};
- return {
-   uid:String(userId||''),
-   country:String(profile?.country||''),
-   city:String(profile?.city||''),
-   emailVerified:profile?.emailVerified===true,
-   verified:profile?.verified===true,
-   active:profileComplete(profile)&&!isSecurityBlocked(profile),
-   updatedAt:Number(updatedAt)||Number(old.updatedAt)||0
- };
-}
-async function syncOwnPublicProfile(profile=currentProfile,userId=uid()){
- if(!db||!profile||!userId||auth?.currentUser?.uid!==userId)return false;
- // Never publish from a stale in-memory profile. Re-read the private profile
- // immediately before mirroring the deliberately limited public fields.
- let fresh=null;
- try{
-   const snap=await db.ref('users/'+userId).get();
-   fresh=snap.exists()?snap.val():null;
- }catch(e){
-   console.warn('private profile freshness check failed',e);
-   return false;
- }
- if(auth?.currentUser?.uid!==userId)return false;
- if(!fresh||!profileComplete(fresh)||isSecurityBlocked(fresh)){
-   try{await removeOwnPublicProfile(userId)}catch(e){console.warn('stale public profile cleanup failed',e)}
-   return false;
- }
- const updatedAt=await firebaseAdjustedNow();
- if(auth?.currentUser?.uid!==userId)return false;
- const ref=db.ref('publicProfiles/'+userId);
- const tx=await ref.transaction(current=>{
-   if(auth?.currentUser?.uid!==userId)return;
-   return publicProfileFromPrivate(fresh,userId,current,updatedAt);
- });
- if(tx.committed&&auth?.currentUser?.uid===userId)currentProfile=fresh;
- return !!tx.committed;
-}
-async function removeOwnPublicProfile(userId=uid()){
- if(!db||!userId||auth?.currentUser?.uid!==userId)return false;
- const ref=db.ref('publicProfiles/'+userId);
- const tx=await ref.transaction(current=>{
-   if(auth?.currentUser?.uid!==userId)return;
-   if(!current)return current;
-   return null;
- });
- return !!tx.committed;
-}
-function registeredParticipantCount(registered){
- return Object.keys(registered&&typeof registered==='object'?registered:{}).length;
-}
-function stopParticipantCounterListener(){
- if(participantCounterRef){
-   try{participantCounterRef.off()}catch(e){}
-   participantCounterRef=null;
- }
-}
-function startParticipantCounterListener(user=null){
- stopParticipantCounterListener();
- if(!$('counter'))return;
- // Privacy boundary: a browser must not read stats/registered as a whole,
- // because the child keys are participant UIDs. In the strict one-file client
- // there is no trusted server aggregate yet, so an exact global count cannot be
- // shown without exposing those identifiers. Keep the UI honest until a trusted
- // backend maintains a public numeric counter.
- $('counter').textContent='Учасників: —';
-}
-
 async function claimRegisteredParticipant(userId){
  if(!db||!userId||auth?.currentUser?.uid!==userId)return false;
- const markerRef=db.ref('stats/registered/'+userId);
- const tx=await markerRef.transaction(current=>{
+ const statsRef=db.ref('stats');
+ const tx=await statsRef.transaction(current=>{
    if(auth?.currentUser?.uid!==userId)return;
-   if(current===true)return current;
-   if(current!=null&&current!==false)return;
-   return true;
+   current=current||{};
+   const registered={...(current.registered||{})};
+   if(registered[userId])return;
+   registered[userId]=true;
+   return {
+     ...current,
+     registered,
+     users:(Number(current.users)||0)+1
+   };
  });
- if(!tx.committed)return false;
- return tx.snapshot.val()===true;
+ return !!tx.committed;
 }
 
 async function releaseRegisteredParticipant(userId){
  if(!db||!userId||auth?.currentUser?.uid!==userId)return false;
- const markerRef=db.ref('stats/registered/'+userId);
- const tx=await markerRef.transaction(current=>{
+ const statsRef=db.ref('stats');
+ const tx=await statsRef.transaction(current=>{
    if(auth?.currentUser?.uid!==userId)return;
-   if(current==null)return current;
-   if(current!==true)return;
-   return null;
+   if(!current||!current.registered||!current.registered[userId])return;
+   const registered={...current.registered};
+   delete registered[userId];
+   return {
+     ...current,
+     registered,
+     users:Math.max(0,(Number(current.users)||0)-1)
+   };
  });
- if(!tx.committed)return false;
- return !tx.snapshot.exists();
+ return !!tx.committed;
 }
 
 async function registerUser(){
@@ -977,9 +910,7 @@ async function registerUser(){
  try{
    const c=await auth.createUserWithEmailAndPassword(data.email,pass);
    createdUser=c.user;currentUser=c.user;
-   const registrationCreatedAt=await firebaseAdjustedNow();
-   if(auth?.currentUser?.uid!==c.user.uid)throw Error('Обліковий запис змінився під час реєстрації');
-   data.createdAt=registrationCreatedAt;data.verified=false;data.emailVerified=false;data.registrationStatus='active';
+   data.createdAt=Date.now();data.verified=false;data.emailVerified=false;data.registrationStatus='active';
 
    const userRef=db.ref('users/'+c.user.uid);
 
@@ -1003,7 +934,7 @@ async function registerUser(){
 
    const counted=await claimRegisteredParticipant(c.user.uid);
    if(!counted){
-     const marker=(await db.ref('stats/registered/'+c.user.uid).get()).val()===true;
+     const marker=(await db.ref('stats/registered/'+c.user.uid).get()).exists();
      if(!marker)throw Error('Не вдалося зафіксувати учасника в лічильнику');
    }
 
@@ -1040,26 +971,24 @@ async function registerUser(){
          return status('regStatus','Цей акаунт заблоковано системою безпеки. Відновлення через реєстрацію вимкнено.','bad');
        }
 
-       if(profileComplete(existing)&&registeredSnap.val()===true){
+       if(profileComplete(existing)&&registeredSnap.exists()){
          currentProfile=existing;
          status('regStatus','Цей акаунт уже зареєстрований. Ви увійшли.','good');
          return;
        }
 
-       const recoveredAt=await firebaseAdjustedNow();
+       const recoveredAt=Date.now();
        const recoveryTx=await userRef.transaction(current=>{
          if(auth?.currentUser?.uid!==u.uid)return;
          current=current||{};
          // Never let an older registration-recovery snapshot overwrite a
-         // security block or any profile that became complete meanwhile.
-         // The registration marker is repaired separately after this transaction,
-         // so a stale marker snapshot must never authorize profile replacement.
+         // security block or a complete account that appeared meanwhile.
          if(isSecurityBlocked(current))return;
-         if(profileComplete(current))return current;
+         if(profileComplete(current)&&registeredSnap.exists())return;
          return {
            ...current,
            ...data,
-           createdAt:Number(current.createdAt)||Number(existing.createdAt)||recoveredAt,
+           createdAt:Number(current.createdAt)||Number(existing.createdAt)||Date.now(),
            recoveredAt,
            registrationStatus:'active',
            emailVerified:u.emailVerified===true,
@@ -1074,7 +1003,7 @@ async function registerUser(){
            await enforceSecurityLockout(u,latest,'registration-recovery-race-block');
            return status('regStatus','Цей акаунт заблоковано системою безпеки. Відновлення зупинено.','bad');
          }
-         if(profileComplete(latest)&&registeredSnap.val()===true){
+         if(profileComplete(latest)&&registeredSnap.exists()){
            currentProfile=latest;
            status('regStatus','Цей акаунт уже зареєстрований. Ви увійшли.','good');
            return;
@@ -1082,12 +1011,10 @@ async function registerUser(){
          throw Error('Відновлення профілю зупинено через зміну стану акаунта');
        }
 
-       const freshRegisteredSnap=await registeredRef.get();
-       if(auth?.currentUser?.uid!==u.uid)throw Error('Акаунт змінився під час відновлення реєстрації');
-       if(freshRegisteredSnap.val()!==true){
+       if(!registeredSnap.exists()){
          const counted=await claimRegisteredParticipant(u.uid);
          if(!counted){
-           const marker=(await registeredRef.get()).val()===true;
+           const marker=(await registeredRef.get()).exists();
            if(!marker)throw Error('Не вдалося відновити учасника в лічильнику');
          }
        }
@@ -1126,7 +1053,7 @@ async function registerUser(){
        const markerRef=db.ref('stats/registered/'+createdUser.uid);
        const [profileSnap,markerSnap]=await Promise.all([profileRef.get(),markerRef.get()]);
        const complete=profileComplete(profileSnap.val());
-       const registered=markerSnap.val()===true;
+       const registered=markerSnap.exists();
 
        // Only a complete profile with its registration marker counts as a
        // finished registration. Otherwise remove the partial DB residue first,
@@ -1160,10 +1087,8 @@ async function registerUser(){
  }
 }
 
-async function validateNotificationRelation(userId,key,payload,expectedActorId=null){
+async function validateNotificationRelation(userId,key,payload){
  if(!db||!userId||!key||!payload||!uid())return false;
- const actorId=String(expectedActorId||uid());
- if(!actorId||auth?.currentUser?.uid!==actorId)return false;
  const type=String(payload.type||''),demandId=String(payload.demandId||'');
  if(!demandId)return false;
 
@@ -1173,42 +1098,32 @@ async function validateNotificationRelation(userId,key,payload,expectedActorId=n
 
  if(type==='matchingDemand'){
    const offerId=String(payload.offerId||'');
-   if(!offerId||demand.ownerId!==actorId||demand.status!=='open')return false;
+   if(!offerId||demand.ownerId!==uid()||demand.status!=='open')return false;
    const os=await db.ref('offers/'+offerId).get(),offer=os.exists()?os.val():null;
-   if(auth?.currentUser?.uid!==actorId)return false;
-   if(!offer||offer.ownerId!==userId||offer.status!=='active')return false;
-   return offerDemandScore(demand,offer)>=.18;
+   return !!offer&&offer.ownerId===userId;
  }
 
  if(type==='response'){
    const providerId=String(payload.from||'');
-   if(!providerId||providerId!==actorId||demand.ownerId!==userId||demand.status!=='open')return false;
+   if(!providerId||providerId!==uid()||demand.ownerId!==userId||demand.status!=='open')return false;
    const rs=await db.ref('responses/'+demandId+'/'+providerId).get(),response=rs.exists()?rs.val():null;
-   if(auth?.currentUser?.uid!==actorId)return false;
    return !!response&&response.providerId===providerId&&response.status==='sent';
  }
 
  if(!['chosen','notChosen','completed'].includes(type))return false;
- if(demand.ownerId!==actorId||!demand.chosenProviderId)return false;
+ if(demand.ownerId!==uid()||!demand.chosenProviderId)return false;
 
  const rs=await db.ref('responses/'+demandId+'/'+userId).get(),response=rs.exists()?rs.val():null;
- if(auth?.currentUser?.uid!==actorId)return false;
  if(!response||response.providerId!==userId)return false;
 
- // The response itself is provider-owned. Selection/completion belongs to the
- // demand and must never require the customer to rewrite another user's response.
- // Legacy chosen/not_chosen/completed response states remain readable only for
- // compatibility with older builds.
- const responseUsable=['sent','chosen','not_chosen','completed'].includes(response.status);
- if(!responseUsable||response.status==='stale')return false;
  if(type==='chosen'){
-   return demand.chosenProviderId===userId&&['chosen','completed'].includes(demand.status);
+   return demand.chosenProviderId===userId&&['chosen','completed'].includes(demand.status)&&['chosen','completed'].includes(response.status);
  }
  if(type==='notChosen'){
-   return demand.chosenProviderId!==userId&&['chosen','completed'].includes(demand.status);
+   return demand.chosenProviderId!==userId&&['chosen','completed'].includes(demand.status)&&response.status==='not_chosen';
  }
  if(type==='completed'){
-   return demand.chosenProviderId===userId&&demand.status==='completed';
+   return demand.chosenProviderId===userId&&demand.status==='completed'&&response.status==='completed';
  }
  return false;
 }
@@ -1216,14 +1131,12 @@ async function validateNotificationRelation(userId,key,payload,expectedActorId=n
 async function putNotificationOnce(userId,key,payload){
  if(!db||!userId||!key||!uid())return false;
  if(!await requireVerifiedAccount())return false;
- const actorId=uid();
- if(!actorId||auth?.currentUser?.uid!==actorId)return false;
 
  // Cross-user notification writes are allowed only when the current account,
  // demand, response/offer and recipient form the exact relationship required
  // by the notification type.
  let related=false;
- try{related=await validateNotificationRelation(userId,key,payload,actorId)}
+ try{related=await validateNotificationRelation(userId,key,payload)}
  catch(e){console.warn('notification relation check failed',userId,key,e);return false}
  if(!related)return false;
 
@@ -1231,45 +1144,24 @@ async function putNotificationOnce(userId,key,payload){
  // Recipient state is checked immediately before the notification transaction.
  let recipient=null;
  try{
-   const ps=await db.ref('publicProfiles/'+userId).get();
+   const ps=await db.ref('users/'+userId).get();
    recipient=ps.exists()?ps.val():null;
  }catch(e){
    console.warn('notification recipient check failed',userId,e);
    return false;
  }
- if(!publicProfileActive(recipient))return false;
- if(auth?.currentUser?.uid!==actorId)return false;
- if(!await validateNotificationRelation(userId,key,payload,actorId))return false;
- if(auth?.currentUser?.uid!==actorId)return false;
- const notificationCreatedAt=Number(payload?.createdAt)||await firebaseAdjustedNow();
+ if(!recipient||!profileComplete(recipient)||isSecurityBlocked(recipient))return false;
+ if(!await validateNotificationRelation(userId,key,payload))return false;
  const ref=db.ref('notifications/'+userId+'/'+key);
  const tx=await ref.transaction(current=>{
-   if(auth?.currentUser?.uid!==actorId)return;
-   if(current){
-     const sameIdentity=
-       String(current.type||'')===String(payload.type||'')&&
-       String(current.demandId||'')===String(payload.demandId||'')&&
-       String(current.offerId||'')===String(payload.offerId||'')&&
-       String(current.from||'')===String(payload.from||'')&&
-       (!current.senderId||String(current.senderId)===String(actorId))&&
-       (!current.recipientId||String(current.recipientId)===String(userId));
-     return sameIdentity?current:undefined;
-   }
-   // Store only a small identity envelope. Human-readable notification text is
-   // derived from the trusted type in the recipient UI instead of accepting
-   // arbitrary cross-user text from a modified client.
-   const notification={
-     type:String(payload.type||''),
-     demandId:String(payload.demandId||''),
-     senderId:String(actorId),
-     recipientId:String(userId),
-     createdAt:notificationCreatedAt,
+   if(auth?.currentUser?.uid!==uid())return;
+   if(current)return;
+   return {
+     ...payload,
+     createdAt:Number(payload?.createdAt)||Date.now(),
      delivered:false,
      read:false
    };
-   if(payload.offerId)notification.offerId=String(payload.offerId);
-   if(payload.from)notification.from=String(payload.from);
-   return notification;
  });
  return !!tx.committed;
 }
@@ -1340,15 +1232,6 @@ function notificationKindLabel(type){
    completed:'Завершено'
  })[type]||'Повідомлення';
 }
-function notificationBody(type){
- return ({
-   matchingDemand:'Є новий попит, схожий на вашу пропозицію',
-   response:'Нова відповідь на ваш попит',
-   chosen:'Вашу пропозицію обрано',
-   notChosen:'Для цього попиту обрано іншу пропозицію',
-   completed:'Замовлення завершено'
- })[type]||'Нове повідомлення';
-}
 async function markNotificationRead(key){
  if(!db||!uid()||!key)return false;
  if(!await requireVerifiedAccount('status','notificationStatus'))return false;
@@ -1356,7 +1239,7 @@ async function markNotificationRead(key){
  try{
    if(auth?.currentUser?.uid!==userId)return false;
    const ref=db.ref('notifications/'+userId+'/'+key);
-   const readAt=await firebaseAdjustedNow();
+   const readAt=Date.now();
    const tx=await ref.transaction(current=>{
      if(auth?.currentUser?.uid!==userId||!current)return;
      if(current.read===true)return current;
@@ -1408,7 +1291,7 @@ async function loadNotificationInbox(){
      const when=n.createdAt?new Date(Number(n.createdAt)).toLocaleString():'';
      return `<div class="result" style="${unread?'font-weight:800':''}">
        <div>${esc(notificationKindLabel(n.type))}${unread?' · НОВЕ':''}</div>
-       <div class="small" style="font-weight:400">${esc(notificationBody(n.type))}${when?' · '+esc(when):''}</div>
+       <div class="small" style="font-weight:400">${esc(n.text||'Нове повідомлення')}${when?' · '+esc(when):''}</div>
        ${unread?`<button class="secondary" type="button" onclick="markNotificationRead('${esc(n.id)}')">Позначити прочитаним</button>`:''}
      </div>`;
    }).join(''):'<div class="muted small">Повідомлень ще немає.</div>';
@@ -1500,7 +1383,7 @@ async function listenNotifications(userId){
    let systemPopup=false;
    if('Notification'in window&&Notification.permission==='granted'){
      try{
-       new Notification('Так-2-Так',{body:notificationBody(n.type)});
+       new Notification('Так-2-Так',{body:n.text||'Нове повідомлення'});
        systemPopup=true;
      }catch(e){}
    }
@@ -1517,7 +1400,7 @@ async function listenNotifications(userId){
        return;
      }
      if(auth?.currentUser?.uid!==userId||notifUserId!==userId||!notifRef)return;
-     const deliveredAt=await firebaseAdjustedNow(),delivery=systemPopup?'foreground-browser':'foreground-in-app';
+     const deliveredAt=Date.now(),delivery=systemPopup?'foreground-browser':'foreground-in-app';
      const deliveryTx=await snap.ref.transaction(current=>{
        if(auth?.currentUser?.uid!==userId||notifUserId!==userId||!notifRef||!current)return;
        if(current.delivered===true)return current;
@@ -2067,11 +1950,20 @@ function searchFailureMessage(err){
 async function runQuery(){
  const raw=$('q').value.trim();if(!raw)return;
  $('results').innerHTML='';
+ kernelTrace('understand','Отримано запит. Ядро визначає намір і точність формулювання.');
  // Registration is mandatory for every functional area, including
  // information search. Do not create anonymous fee sessions.
- if(!await requireVerifiedAccount('status','searchStatus'))return;
+ if(!await requireVerifiedAccount('status','searchStatus')){
+   kernelTrace('understand','Зупинено: обов’язкова реєстрація або підтвердження облікового запису не завершені.','failed');
+   return;
+ }
  status('searchStatus','Шукаю і перевіряю…');
  const {q,exact}=normalizeQuery(raw),needMap=wantsMap(q);
+ const route=exact&&(needMap||looksLikeExactAddress(q))?'точна адреса / карта'
+   :marketIntent(q)?'попит ↔ пропозиція'
+   :parseRelation(q)?'структурований факт'
+   :needMap?'місце / карта':'перевірена інформація';
+ kernelTrace('route','Маршрут: '+route+'. Відкривається одна тестова сесія запиту.');
  try{
    await openSession('search');
 
@@ -2079,32 +1971,39 @@ async function runQuery(){
    // ONE concrete geographic result first. They must not be diluted into
    // Wikipedia/search alternatives.
    if(exact&&(needMap||looksLikeExactAddress(q))){
+     kernelTrace('verify','Перевірка точної адреси через OpenStreetMap / Nominatim.');
      const exactPlace=stripMapWords(q);
      const wantedNumber=requestedHouseNumber(exactPlace);
      const g=await geocodeExact(exactPlace);
      if(g){
        $('results').innerHTML=exactPlaceHTML(g);
+       kernelTrace('answer','Повернено одну адресу, яку підтвердило зовнішнє джерело.','done');
        return status('searchStatus',wantedNumber?'1 конкретна адреса з підтвердженим номером будинку.':'1 конкретна адреса на карті.','good');
      }
      const detail=wantedNumber
        ?'OpenStreetMap / Nominatim не підтвердив саме цей номер будинку. Програма не підмінює його лише вулицею або центром міста.'
        :'OpenStreetMap / Nominatim не підтвердив точне місце. Програма не підмінює точну адресу схожими варіантами.';
      $('results').innerHTML='<div class="result"><h3>Немає підтвердженої адреси</h3><p>'+esc(detail)+'</p></div>';
+     kernelTrace('verify','Джерело не підтвердило точну адресу. Ядро не підставило схожий результат.','failed');
      return status('searchStatus','Точну адресу не підтверджено.','bad');
    }
 
    if(marketIntent(q) && !/столиц|capital|населення|population|валюта|currency/iu.test(q)){
-     $('results').innerHTML=`<div class="result"><h3>Це запит попиту / пропозиції</h3><p>Для реальних учасників Так-2-Так створіть попит або пропозицію. Система покаже до 3 реальних відповідей, якщо вони є.</p><div class="grid2"><button class="primary" onclick="enterFunctionalArea('demand')">Створити попит</button><button class="secondary" onclick="enterFunctionalArea('offer')">Створити пропозицію</button></div></div>`;
+     kernelTrace('answer','Запит визначено як реальну потребу. Його спрямовано у контур попиту та пропозиції.','done');
+     $('results').innerHTML=`<div class="result"><h3>Це запит попиту / пропозиції</h3><p>Для реальних учасників Так-2-Так створіть попит або пропозицію. Система покаже до 3 реальних відповідей, якщо вони є.</p><div class="grid2"><button class="primary" onclick="show('demand')">Створити попит</button><button class="secondary" onclick="show('offer')">Створити пропозицію</button></div></div>`;
      return status('searchStatus','Запит направлено в ядро попиту/пропозиції.','good');
    }
    const fact=await structuredFact(q,needMap);
    if(fact){
+     kernelTrace('verify','Факт знайдено у Wikidata; перевіряється пов’язане місце та карта.');
      const g=fact.g||(needMap&&fact.place?await geocode(fact.place):null);
      $('results').innerHTML=`<div class="result"><h3>${esc(fact.title)}</h3><div class="answer">${esc(fact.text)}</div>${g?`<div class="small">${esc(g.display_name||fact.place)}</div>${mapHTML(g)}`:''}<div class="small">Джерело: ${fact.url?`<a href="${esc(fact.url)}" target="_blank" rel="noopener">${esc(fact.source||'Wikidata')}</a>`:esc(fact.source||'Wikidata')}</div></div>`;
+     kernelTrace('answer','Повернено одну структуровану відповідь із посиланням на джерело.','done');
      return status('searchStatus','1 конкретна відповідь із Wikidata.','good');
    }
    const clean=stripMapWords(q);
    if(needMap){
+     kernelTrace('verify','Пошук і перевірка місця через OpenStreetMap / Nominatim.');
      const g=await geocode(clean);
      if(g){
        $('results').innerHTML=`<div class="result"><h3>${esc(g.display_name.split(',')[0])}</h3><div>${esc(g.display_name)}</div>${mapHTML(g)}</div>`;
@@ -2113,6 +2012,7 @@ async function runQuery(){
    }
    const researched=await researchAnswer(clean);
    if(researched){
+     kernelTrace('verify','Відповідь звірено за Wikipedia та пов’язаною сутністю Wikidata.');
      $('results').innerHTML=`<div class="result"><h3>${esc(researched.title)}</h3><div class="answer">${esc(researched.text)}</div><div class="small">Джерело: ${researched.url?`<a href="${esc(researched.url)}" target="_blank" rel="noopener">${esc(researched.source||'відкрите джерело')}</a>`:esc(researched.source||'відкрите джерело')} · ${researched.corroboration?'сторінка пов’язана з Wikidata':'додаткового звіряння сутності немає'} · рівень перевірки ${researched.confidence}/8</div></div>`;
      return status('searchStatus','1 зведена відповідь із відкритого джерела.','good');
    }
@@ -2121,6 +2021,7 @@ async function runQuery(){
      return status('searchStatus','Не підтверджено — програма нічого не вигадує.','bad');
    }
    let pages=await wikiSearch(clean,exact?1:3);
+   kernelTrace('verify','Пошук кандидатів у Wikipedia та відбір за відповідністю запиту.');
    if(!pages.length){
      const simplified=clean.replace(/^(хто|що|де|коли|чому|як|who|what|where|when|why|how)\s+/iu,'');
      if(simplified!==clean)pages=await wikiSearch(simplified,exact?1:3);
@@ -2129,6 +2030,7 @@ async function runQuery(){
    const factual=/^(хто|що|де|коли|який|яка|яке|які|скільки|who|what|where|when|which|how many)(?:\s|$)/iu.test(clean);
    const take=(exact||factual)?pages.slice(0,1):pages.slice(0,3);
    $('results').innerHTML=take.map((p,i)=>`<div class="result"><span class="pill">${i+1}</span><h3>${esc(p.title)}</h3><p>${esc((p.extract||'').slice(0,1100))}</p></div>`).join('');
+   kernelTrace('answer',take.length===1?'Повернено одну конкретну відповідь.':'Повернено до трьох найрелевантніших підтверджених варіантів.','done');
    status('searchStatus',take.length===1?'1 конкретна відповідь.':`Знайдено ${take.length} найрелевантніші результати.`,'good');
  }catch(e){
    console.error(e);
@@ -2139,6 +2041,7 @@ async function runQuery(){
    const f=searchFailureMessage(e);
    $('results').innerHTML=`<div class="result"><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p></div>`;
    status('searchStatus',f.status,'bad');
+   kernelTrace('verify',f.text,'failed');
  }
 }
 function voiceInto(id,after){
@@ -2213,17 +2116,6 @@ function pendingPublishKey(kind){return 't2t_pending_publish_'+kind+'_'+(uid()||
 function publishSignature(kind,data){
  return JSON.stringify([kind,data?.ownerId||'',data?.text||'',data?.place||'',data?.when||'',data?.price||'']);
 }
-function responseSelectionSignature(data){
- return JSON.stringify([
-   data?.providerId||'',
-   data?.text||'',
-   data?.price||'',
-   data?.priceAmount??null,
-   data?.priceCurrency||null,
-   data?.minutes??data?.timeMinutes??data?.deliveryMinutes??null,
-   Number(data?.createdAt)||0
- ]);
-}
 async function idempotentPush(collection,kind,data){
  if(!db)throw Error('Немає з’єднання з Firebase');
  const userId=uid();
@@ -2234,52 +2126,27 @@ async function idempotentPush(collection,kind,data){
  if(!await requireVerifiedAccount())throw Error('Обліковий запис не пройшов перевірку для публікації');
  const storageKey=pendingPublishKey(kind),signature=publishSignature(kind,data),now=Date.now();
  let pending=null;
- try{
-   pending=JSON.parse(localStorage.getItem(storageKey)||'null');
- }catch(e){
-   // Browser storage is only an idempotency aid. If it is unavailable or
-   // contains bad JSON, publication must still be able to proceed.
-   try{localStorage.removeItem(storageKey)}catch(_){}
- }
+ try{pending=JSON.parse(localStorage.getItem(storageKey)||'null')}catch(e){localStorage.removeItem(storageKey)}
  if(!pending||pending.signature!==signature||!pending.key||now-Number(pending.startedAt||0)>120000){
    pending={key:db.ref(collection).push().key,signature,startedAt:now};
-   try{
-     localStorage.setItem(storageKey,JSON.stringify(pending));
-   }catch(e){
-     console.warn('pending publication cache unavailable; continuing without local retry cache',e);
-   }
+   localStorage.setItem(storageKey,JSON.stringify(pending));
  }
  const ref=db.ref(collection+'/'+pending.key);
  const publishTx=await ref.transaction(current=>{
    if(auth?.currentUser?.uid!==userId)return;
    if(current){
-     // A retry may reuse the deterministic pending key, but it may accept an
-     // existing record only when it is the exact same publication. Matching
-     // owner alone is not enough: otherwise an old record could silently stand
-     // in for new text/place/price after a local retry.
+     // The pending key may be retried after a timeout. Never overwrite an
+     // already-created publication; accept it only if it is the same owner/type.
      const sameOwner=String(current.ownerId||'')===String(userId);
      const sameKind=(collection==='demands'&&current.status==='open')||
-                    (collection==='offers'&&current.status==='active');
-     const sameSignature=publishSignature(kind,current)===pending.signature;
-     if(sameOwner&&sameKind&&sameSignature)return current;
+                    (collection==='offers'&&String(current.ownerId||'')===String(userId));
+     if(sameOwner&&sameKind)return current;
      return;
    }
    return data;
  });
- if(!publishTx.committed)throw Error('Публікацію зупинено через зміну стану, змісту або невідповідність власника');
- const saved=publishTx.snapshot.val();
- if(!saved||
-    String(saved.ownerId||'')!==String(userId)||
-    publishSignature(kind,saved)!==pending.signature){
-   throw Error('Публікацію зупинено: збережений запис не відповідає поточному запиту');
- }
- try{
-   localStorage.removeItem(storageKey);
- }catch(e){
-   // Publication is already committed in Firebase. Cleanup failure must not
-   // turn a successful publication into a false user-visible failure.
-   console.warn('pending publication cache cleanup failed after commit',e);
- }
+ if(!publishTx.committed)throw Error('Публікацію зупинено через зміну стану або невідповідність власника');
+ localStorage.removeItem(storageKey);
  return ref;
 }
 async function publishDemand(){
@@ -2293,10 +2160,9 @@ async function publishDemand(){
  const btn=document.querySelector('#demand button[onclick="publishDemand()"]');if(btn)btn.disabled=true;
  try{
    await openSession('demand');
-   const createdAt=await firebaseAdjustedNow();
-   // The demand stores the user's declared place, not client-derived coordinates
-   // or a stale/self-asserted owner rating snapshot.
-   const x={ownerId:uid(),text,place,when:$('demandWhen').value,status:'open',createdAt};
+   const coords=await safePlaceCoordinates(place);
+   const x={ownerId:uid(),text,place,when:$('demandWhen').value,status:'open',createdAt:Date.now(),ownerRating:currentProfile?.rating||null,
+     lat:coords?.lat??null,lon:coords?.lon??null};
    const ref=await idempotentPush('demands','demand',x);
 
    let matchingFailed=false,refreshFailed=false;
@@ -2339,13 +2205,15 @@ async function publishOffer(){
  const btn=document.querySelector('#offer button[onclick="publishOffer()"]');if(btn)btn.disabled=true;
  try{
    await openSession('offer');
+   const coords=await safePlaceCoordinates(place);
+   const trust=trustLabel(currentProfile);
    const rawPrice=$('offerPrice').value.trim(),parsedPrice=parsePrice(rawPrice);
-   const createdAt=await firebaseAdjustedNow();
-   // Offer location is the provider's declared service area. Do not persist
-   // client-derived coordinates or self-asserted trust snapshots here.
-   const x={ownerId:uid(),text,price:rawPrice,priceAmount:parsedPrice.amount,priceCurrency:parsedPrice.currency,place,status:'active',createdAt};
+   const x={ownerId:uid(),text,price:rawPrice,priceAmount:parsedPrice.amount,priceCurrency:parsedPrice.currency,place,status:'active',createdAt:Date.now(),
+     emailVerified:currentProfile?.emailVerified===true,
+     providerVerified:currentProfile?.verified===true,
+     verificationLabel:trust.text,
+     lat:coords?.lat??null,lon:coords?.lon??null};
    await idempotentPush('offers','offer',x);
-   await startMatchingDemandWatch(uid()).catch(e=>console.warn('matching watch restart failed',e));
 
    let refreshFailed=false;
    if(document.getElementById('offer')?.classList.contains('active')){
@@ -2437,111 +2305,32 @@ function offerDemandScore(d,o){
 }
 
 async function notifyMatchingProviders(demandId,d){
- // Matching-demand alerts are deliberately NOT written into another user's
- // Firebase inbox. RTDB Rules can prove ownership/state, but they cannot prove
- // the fuzzy offerDemandScore(). The provider's own authenticated client runs
- // the same matching logic locally via startMatchingDemandWatch().
  if(!db||!demandId||!uid())return {matched:0,notified:0};
- const actorId=uid();
- if(!actorId||auth?.currentUser?.uid!==actorId)return {matched:0,notified:0};
  const freshDemandSnap=await db.ref('demands/'+demandId).get();
- if(auth?.currentUser?.uid!==actorId)return {matched:0,notified:0};
  const freshDemand=freshDemandSnap.exists()?freshDemandSnap.val():null;
- if(!freshDemand||freshDemand.ownerId!==actorId||freshDemand.status!=='open')return {matched:0,notified:0};
- return {matched:0,notified:0};
-}
-
-function stopMatchingDemandWatch(){
- if(matchingDemandRef){
-   matchingDemandRef.off();
-   matchingDemandRef=null;
- }
- matchingDemandWatchUserId=null;
- matchingDemandWatchBusy=false;
-}
-function matchingSeenKey(userId){return 't2t_matching_seen_'+String(userId||'')}
-function readMatchingSeen(userId){
- try{
-   const raw=JSON.parse(localStorage.getItem(matchingSeenKey(userId))||'{}');
-   return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
- }catch(e){return {}}
-}
-function writeMatchingSeen(userId,seen){
- try{
-   const entries=Object.entries(seen||{}).sort((a,b)=>Number(b[1]||0)-Number(a[1]||0)).slice(0,300);
-   localStorage.setItem(matchingSeenKey(userId),JSON.stringify(Object.fromEntries(entries)));
- }catch(e){}
-}
-async function evaluateMatchingDemandWatch(userId,snap){
- if(matchingDemandWatchBusy||!db||!userId||auth?.currentUser?.uid!==userId)return;
- matchingDemandWatchBusy=true;
- try{
-   const profileSnap=await db.ref('users/'+userId).get();
-   if(auth?.currentUser?.uid!==userId)return;
-   const profile=profileSnap.exists()?profileSnap.val():null;
-   if(!profile||!profileComplete(profile)||isSecurityBlocked(profile)||!sessionRuleAccepted(profile)||auth.currentUser?.emailVerified!==true)return;
-
-   const os=await db.ref('offers').orderByChild('ownerId').equalTo(userId).limitToLast(50).get();
-   if(auth?.currentUser?.uid!==userId)return;
-   const offers=[];
-   os.forEach(c=>{const o={id:c.key,...c.val()};if(o.status==='active')offers.push(o)});
-   if(!offers.length)return;
-   await Promise.all(offers.map(async o=>{
-     const coords=await safePlaceCoordinates(o.place||'');
-     o.lat=coords?.lat??null;o.lon=coords?.lon??null;
-   }));
-
-   const demands=[];
-   snap.forEach(c=>{const d={id:c.key,...c.val()};if(d.ownerId!==userId&&d.status==='open')demands.push(d)});
-   await Promise.all(demands.map(hydrateDemandCoordinates));
-
-   const seen=readMatchingSeen(userId),now=Date.now();
-   const hits=[];
-   for(const d of demands){
-     for(const o of offers){
-       const score=offerDemandScore(d,o);
-       if(score<.18)continue;
-       const key=String(d.id)+'_'+String(o.id);
-       if(!seen[key])hits.push({d,o,score,key});
-     }
-   }
-   hits.sort((a,b)=>b.score-a.score||Number(b.d.createdAt||0)-Number(a.d.createdAt||0));
-
-   for(const hit of hits.slice(0,3)){
-     seen[hit.key]=now;
-     if('Notification'in window&&Notification.permission==='granted'){
-       try{new Notification('Так-2-Так',{body:'Є новий попит, схожий на вашу пропозицію'})}catch(e){}
-     }
-   }
-   if(hits.length){
-     writeMatchingSeen(userId,seen);
-     if(document.getElementById('offer')?.classList.contains('active')){
-       status('offerStatus','Є новий релевантний попит.','good');
-       await loadLiveDemands(snap).catch(()=>{});
-     }
-   }
- }catch(e){
-   console.warn('local matching demand watch failed',userId,e);
- }finally{
-   matchingDemandWatchBusy=false;
- }
-}
-async function startMatchingDemandWatch(userId){
- if(!db||!userId||auth?.currentUser?.uid!==userId)return false;
- if(matchingDemandRef&&matchingDemandWatchUserId===userId)return true;
- stopMatchingDemandWatch();
- if(!await requireVerifiedAccount())return false;
- if(auth?.currentUser?.uid!==userId)return false;
- matchingDemandWatchUserId=userId;
- matchingDemandRef=db.ref('demands').orderByChild('status').equalTo('open').limitToLast(100);
- matchingDemandRef.on('value',snap=>{
-   if(auth?.currentUser?.uid!==userId||matchingDemandWatchUserId!==userId){
-     stopMatchingDemandWatch();
-     return;
-   }
-   evaluateMatchingDemandWatch(userId,snap);
+ if(!freshDemand||freshDemand.ownerId!==uid()||freshDemand.status!=='open')return {matched:0,notified:0};
+ d=freshDemand;
+ const snap=await db.ref('offers').orderByChild('status').equalTo('active').limitToLast(200).get();
+ const candidates=[];
+ snap.forEach(c=>{
+   const o={id:c.key,...c.val()};
+   if(o.ownerId===uid())return;
+   const score=offerDemandScore(d,o);
+   if(score>=.18)candidates.push({o,score});
  });
- return true;
+ candidates.sort((a,b)=>b.score-a.score||Number(b.o.createdAt||0)-Number(a.o.createdAt||0));
+
+ let sent=0;
+ for(const c of candidates.slice(0,10)){
+   const ok=await putNotificationOnce(c.o.ownerId,'matching_'+demandId+'_'+c.o.id,{
+     type:'matchingDemand',demandId,offerId:c.o.id,
+     text:'Є новий попит, схожий на вашу пропозицію',
+     matchScore:Number(c.score.toFixed(3)),
+     createdAt:Date.now()
+   });
+   if(ok)sent++;
+ }
+ return {matched:candidates.length,notified:sent};
 }
 
 function stopLiveDemandsListener(){
@@ -2581,16 +2370,11 @@ async function loadLiveDemands(demandSnap=null){
  try{
    const snap=demandSnap||await db.ref('demands').orderByChild('status').equalTo('open').limitToLast(100).get(),arr=[];
    snap.forEach(c=>arr.push({id:c.key,...c.val()}));
-   await Promise.all(arr.map(hydrateDemandCoordinates));
 
    let myOffers=[];
    if(uid()){
      const os=await db.ref('offers').orderByChild('ownerId').equalTo(uid()).limitToLast(50).get();
      os.forEach(c=>{const v=c.val();if(v?.status==='active')myOffers.push(v)});
-     await Promise.all(myOffers.map(async o=>{
-       const coords=await safePlaceCoordinates(o.place||'');
-       o.lat=coords?.lat??null;o.lon=coords?.lon??null;
-     }));
    }
 
    const visible=[];
@@ -2618,8 +2402,6 @@ async function loadLiveDemands(demandSnap=null){
 
 async function syncResponseNotification(demandId,providerId,response,ownerId){
  if(!db||!demandId||!providerId||!ownerId||!response)return false;
- const actorId=uid();
- if(!actorId||actorId!==providerId||auth?.currentUser?.uid!==actorId)return false;
  const [ds,rs]=await Promise.all([
    db.ref('demands/'+demandId).get(),
    db.ref('responses/'+demandId+'/'+providerId).get()
@@ -2627,19 +2409,18 @@ async function syncResponseNotification(demandId,providerId,response,ownerId){
  const freshDemand=ds.exists()?ds.val():null,freshResponse=rs.exists()?rs.val():null;
  if(!freshDemand||freshDemand.ownerId!==ownerId||freshDemand.status!=='open')return false;
  if(!freshResponse||freshResponse.providerId!==providerId||freshResponse.status!=='sent')return false;
- if(auth?.currentUser?.uid!==actorId)return false;
- const notificationOk=await putNotificationOnce(ownerId,'response_'+demandId+'_'+providerId,{
+ if(providerId!==uid())return false;
+ await putNotificationOnce(ownerId,'response_'+demandId+'_'+providerId,{
    type:'response',
    demandId,
    from:providerId,
    text:'Нова відповідь на ваш попит',
-   createdAt:Number(response.createdAt)||await firebaseAdjustedNow()
+   createdAt:Number(response.createdAt)||Date.now()
  });
- if(!notificationOk)return false;
  const responseRef=db.ref('responses/'+demandId+'/'+providerId);
- const notificationSyncedAt=await firebaseAdjustedNow();
+ const notificationSyncedAt=Date.now();
  const syncTx=await responseRef.transaction(current=>{
-   if(auth?.currentUser?.uid!==actorId||
+   if(auth?.currentUser?.uid!==providerId||
       !current||
       current.providerId!==providerId||
       current.status!=='sent')return;
@@ -2665,21 +2446,27 @@ async function respondDemand(id){
    const minutesRaw=prompt('Час виконання / доставки у хвилинах (необов’язково):')||'';
    const minutes=numOrNull(minutesRaw);
 
-   try{await openSession('offer')}catch(e){
+   try{await openSession('response')}catch(e){
      console.warn('response session failed',e);
      return alert('Не вдалося відкрити сесію. Відповідь не надіслано.');
    }
 
    const providerCity=currentProfile?.city||'',providerCountry=currentProfile?.country||'';
-   const createdAt=await firebaseAdjustedNow();
+   const providerCoords=await safePlaceCoordinates([providerCity,providerCountry].filter(Boolean).join(', '));
+   const providerTrust=trustLabel(currentProfile);
    const x={
      providerId:uid(),text,price,
      priceAmount:parsedPrice.amount,priceCurrency:parsedPrice.currency,
      minutes:minutes!=null&&minutes>=0?minutes:null,
-     // Trust/rating/coordinates are not accepted from a provider-owned response.
-     // The customer hydrates them from publicProfiles + rating ledger + geocoding.
+     emailVerified:currentProfile?.emailVerified===true,
+     providerVerified:currentProfile?.verified===true,
+     verificationLabel:providerTrust.text,
+     rating:numOrNull(currentProfile?.rating),
+     ratingCount:Number(currentProfile?.ratingCount||0),
+     ratingUniqueRaters:Number.isFinite(Number(currentProfile?.ratingUniqueRaters))?Number(currentProfile.ratingUniqueRaters):null,
      providerCity,providerCountry,
-     status:'sent',createdAt
+     providerLat:providerCoords?.lat??null,providerLon:providerCoords?.lon??null,
+     status:'sent',createdAt:Date.now()
    };
 
    const latestDemand=(await db.ref('demands/'+id).get()).val();
@@ -2699,26 +2486,24 @@ async function respondDemand(id){
      return alert('Ви вже відповіли на цей попит. Повторну відповідь не створено.');
    }
 
-   let afterCommitDemand=null,afterCommitStateUnknown=false;
-   try{
-     afterCommitDemand=(await db.ref('demands/'+id).get()).val();
-   }catch(e){
-     // The response transaction has already committed. A transient re-read
-     // failure must never be reported as if the response itself was not sent.
-     afterCommitStateUnknown=true;
-     console.warn('response committed; demand state recheck failed',id,e);
-   }
-   if(!afterCommitStateUnknown&&
-      (!afterCommitDemand||afterCommitDemand.status!=='open'||afterCommitDemand.ownerId!==d.ownerId)){
-     // The response was validly committed while the demand was open. Do not
-     // rewrite provider-owned response status afterward: selection/completion
-     // is authoritative on the demand and a fast customer choice may already
-     // have selected this exact provider.
-     if(afterCommitDemand?.chosenProviderId===providerIdAtCommit&&
-        ['chosen','completed'].includes(afterCommitDemand?.status)){
-       return alert('Відповідь надіслано. Замовник уже обрав вашу пропозицію.');
-     }
-     return alert('Відповідь надіслано, але попит уже змінив стан. Подальший стан визначається самим попитом.');
+   const afterCommitDemand=(await db.ref('demands/'+id).get()).val();
+   if(!afterCommitDemand||afterCommitDemand.status!=='open'||afterCommitDemand.ownerId!==d.ownerId){
+     const providerId=uid(),staleAt=Date.now();
+     await responseRef.transaction(current=>{
+       // A delayed stale callback may only retire the exact response that is
+       // still in its original sent state. Never overwrite chosen/completed.
+       if(auth?.currentUser?.uid!==providerId||
+          !current||
+          current.providerId!==providerId||
+          current.status!=='sent')return;
+       return {
+         ...current,
+         status:'stale',
+         staleAt,
+         staleReason:'demand-not-open-after-response-commit'
+       };
+     }).catch(()=>{});
+     return alert('Попит закрився або змінив стан під час надсилання. Відповідь не використовується і замовнику не сповіщено.');
    }
 
    let notificationPending=false;
@@ -2727,7 +2512,7 @@ async function respondDemand(id){
    }catch(e){
      notificationPending=true;
      console.warn('response notification sync failed',e);
-     const notificationSyncError=String(e?.message||e).slice(0,500),notificationSyncFailedAt=await firebaseAdjustedNow();
+     const notificationSyncError=String(e?.message||e),notificationSyncFailedAt=Date.now();
      await responseRef.transaction(current=>{
        if(auth?.currentUser?.uid!==uid()||
           !current||
@@ -2742,14 +2527,10 @@ async function respondDemand(id){
      }).catch(()=>{});
    }
 
-   if(document.getElementById('offer')?.classList.contains('active')){
-     loadLiveDemands().catch(e=>console.warn('live demand refresh failed after committed response',e));
-   }
+   if(document.getElementById('offer')?.classList.contains('active'))loadLiveDemands();
    alert(notificationPending
      ?'Відповідь надіслано. Сповіщення замовнику буде повторено при синхронізації.'
-     :afterCommitStateUnknown
-       ?'Відповідь надіслано. Повторно перевірити стан попиту зараз не вдалося.'
-       :'Відповідь надіслано.');
+     :'Відповідь надіслано.');
  }catch(e){
    console.warn('respond demand failed',e);
    alert('Не вдалося надіслати відповідь: '+e.message);
@@ -2821,13 +2602,6 @@ async function safePlaceCoordinates(place){
    console.warn('place geocode failed',q,e);
    return null;
  }
-}
-async function hydrateDemandCoordinates(demand){
- if(!demand||typeof demand!=='object')return demand;
- const coords=await safePlaceCoordinates(demand.place||'');
- demand.lat=coords?.lat??null;
- demand.lon=coords?.lon??null;
- return demand;
 }
 function parsePrice(v){
  const raw=String(v??'').trim();
@@ -2934,13 +2708,11 @@ function trustedRatingScore(rating,count,uniqueRaters=null){
  const r=numOrNull(rating);
  if(r==null)return 0;
  const total=Math.max(0,Number(count)||0);
- // null means "unknown/not exposed", not zero independent raters.
- // Number(null) is 0 in JavaScript, which would erase all rating evidence.
- const unique=uniqueRaters==null?null:Number(uniqueRaters);
+ const unique=Number(uniqueRaters);
  // Independent people are stronger evidence than repeated deals with the same
- // person. When unique-rater count is unavailable, preserve the verified
- // immutable marker count instead of silently treating it as zero.
- const evidence=unique!=null&&Number.isFinite(unique)&&unique>=0?Math.min(total,unique):total;
+ // person. For new data use unique-rater count; legacy data without this field
+ // keeps its historical count rather than being silently downgraded.
+ const evidence=Number.isFinite(unique)&&unique>=0?Math.min(total,unique):total;
 
  // One neutral 3/5 prior prevents a single perfect rating from looking as
  // reliable as a broad history from independent customers.
@@ -3035,36 +2807,30 @@ async function hydrateCurrentResponseRatings(arr){
  const profiles=new Map();
  await Promise.all(ids.map(async pid=>{
    try{
-     const [s,ratingAggregate]=await Promise.all([
-       db.ref('publicProfiles/'+pid).get(),
-       readProviderRatingAggregate(pid)
-     ]),p=s.exists()?s.val():null;
+     const s=await db.ref('users/'+pid).get(),p=s.exists()?s.val():null;
      if(!p){
        profiles.set(pid,{providerAccountAvailable:false,providerAccountReason:'profile-missing'});
        return;
      }
-     if(!publicProfileActive(p)){
-       profiles.set(pid,{providerAccountAvailable:false,providerAccountReason:'public-profile-inactive'});
+     if(isSecurityBlocked(p)){
+       profiles.set(pid,{providerAccountAvailable:false,providerAccountReason:'security-blocked'});
        return;
      }
-     const trust=trustLabel(p);
-     // Coordinates are derived from the current public profile, not trusted from
-     // the provider-owned response. If geocoding fails, locality text remains
-     // the fallback and no fabricated distance is shown or ranked.
-     const providerCoords=await safePlaceCoordinates([p.city,p.country].filter(Boolean).join(', '));
+     if(!profileComplete(p)){
+       profiles.set(pid,{providerAccountAvailable:false,providerAccountReason:'profile-incomplete'});
+       return;
+     }
+     const trust=trustLabel(p),r=numOrNull(p?.rating);
+     const count=Number(p?.ratingCount||0),unique=Number(p?.ratingUniqueRaters);
      profiles.set(pid,{
        providerAccountAvailable:true,
-       providerAccountReason:'current-public-profile',
-       rating:ratingAggregate.rating,
-       ratingCount:ratingAggregate.ratingCount,
-       ratingUniqueRaters:ratingAggregate.ratingUniqueRaters,
+       providerAccountReason:'current-profile',
+       rating:r,
+       ratingCount:Number.isFinite(count)?count:0,
+       ratingUniqueRaters:Number.isFinite(unique)&&unique>=0?unique:null,
        emailVerified:p?.emailVerified===true,
        providerVerified:p?.verified===true,
-       verificationLabel:trust.text,
-       providerCity:String(p?.city||''),
-       providerCountry:String(p?.country||''),
-       providerLat:providerCoords?.lat??null,
-       providerLon:providerCoords?.lon??null
+       verificationLabel:trust.text
      });
    }catch(e){
      console.warn('current provider profile read failed',pid,e);
@@ -3083,11 +2849,7 @@ async function hydrateCurrentResponseRatings(arr){
      x.emailVerified=live.emailVerified;
      x.providerVerified=live.providerVerified;
      x.verificationLabel=live.verificationLabel;
-     x.providerCity=live.providerCity;
-     x.providerCountry=live.providerCountry;
-     x.providerLat=live.providerLat;
-     x.providerLon=live.providerLon;
-     x.ratingSource='current-public-profile';
+     x.ratingSource='current-profile';
    }else{
      x.ratingSource='provider-unavailable';
      x.emailVerified=false;
@@ -3111,7 +2873,6 @@ async function loadResponses(id){
    const d=(await db.ref('demands/'+id).get()).val();
    if(!d)throw Error('Попит не знайдено');
    if(d.ownerId!==uid())throw Error('Немає доступу до відповідей цього попиту');
-   await hydrateDemandCoordinates(d);
 
    const snap=await db.ref('responses/'+id).get(),arr=[];
    snap.forEach(c=>arr.push({id:c.key,...c.val()}));
@@ -3124,18 +2885,6 @@ async function loadResponses(id){
        }catch(e){
          console.warn('response notification repair failed',id,r.id,e);
        }
-     }
-   }
-
-   // Selection/completion is demand-owned. Derive a display-only response state
-   // in memory instead of persisting customer decisions inside provider records.
-   if(d.chosenProviderId&&['chosen','completed'].includes(d.status)){
-     for(const r of arr){
-       if(!r||r.status==='stale')continue;
-       r.providerSubmissionStatus=r.status;
-       r.status=r.id===d.chosenProviderId
-         ?(d.status==='completed'?'completed':'chosen')
-         :'not_chosen';
      }
    }
 
@@ -3163,7 +2912,7 @@ async function loadResponses(id){
    box.innerHTML=currencyNotice+(top.length?top.map((x,i)=>{
      const mins=numOrNull(x.minutes??x.timeMinutes??x.deliveryMinutes);
      const rating=numOrNull(x.rating),ratingCount=Number(x.ratingCount||0);
-     const ratingUniqueRaters=x.ratingUniqueRaters==null?null:(Number.isFinite(Number(x.ratingUniqueRaters))?Number(x.ratingUniqueRaters):null);
+     const ratingUniqueRaters=Number.isFinite(Number(x.ratingUniqueRaters))?Number(x.ratingUniqueRaters):null;
      const ratingTrust=rating!=null?trustedRatingScore(rating,ratingCount,ratingUniqueRaters):null;
      const locality=[x.providerCity,x.providerCountry].filter(Boolean).join(', ');
      const km=distanceKm(d.lat,d.lon,x.providerLat,x.providerLon);
@@ -3188,47 +2937,47 @@ async function syncChosenDemand(did,d){
  if(!fresh||fresh.ownerId!==actorId||!['chosen','completed'].includes(fresh.status))return false;
  if(fresh.chosenProviderId!==d.chosenProviderId)return false;
  d=fresh;
+ const pid=d.chosenProviderId,when=Number(d.chosenAt)||Date.now();
+ const all=await db.ref('responses/'+did).get(),losers=[];
 
- // Selection/completion state is owned by the demand. Responses remain
- // provider-owned immutable submissions; the customer only reads them here.
- const pid=d.chosenProviderId;
- const when=Number(d.chosenAt)>0?Number(d.chosenAt):await firebaseAdjustedNow();
- if(auth?.currentUser?.uid!==actorId)return false;
- const all=await db.ref('responses/'+did).get();
- const providers=[];
- let chosenResponse=null;
+ const syncOwnerId=actorId;
+ if(auth?.currentUser?.uid!==syncOwnerId)return false;
+ const jobs=[];
  all.forEach(c=>{
-   const response=c.val(),providerId=c.key;
-   if(!response||response.providerId!==providerId)return;
-   // New responses stay "sent"; legacy decision states are accepted read-only.
-   if(!['sent','chosen','not_chosen','completed'].includes(response.status))return;
-   providers.push(providerId);
-   if(providerId===pid)chosenResponse=response;
+   const providerId=c.key;
+   jobs.push((async()=>{
+     const responseRef=db.ref('responses/'+did+'/'+providerId);
+     const tx=await responseRef.transaction(current=>{
+       if(auth?.currentUser?.uid!==syncOwnerId)return;
+       if(!current||current.status==='stale'||current.status==='completed')return;
+       if(current.providerId&&current.providerId!==providerId)return;
+       const target=providerId===pid?'chosen':'not_chosen';
+       if(current.status===target)return current;
+       if(!['sent','chosen','not_chosen'].includes(current.status))return;
+       return {...current,status:target};
+     });
+     if(tx.committed&&providerId!==pid)losers.push(providerId);
+   })());
  });
- if(!chosenResponse)return false;
- if(auth?.currentUser?.uid!==actorId)return false;
+ await Promise.all(jobs);
 
- for(const providerId of providers){
-   if(auth?.currentUser?.uid!==actorId)return false;
-   if(providerId===pid)continue;
-   await putNotificationOnce(providerId,'notChosen_'+did,{
+ for(const loserId of losers){
+   await putNotificationOnce(loserId,'notChosen_'+did,{
      type:'notChosen',demandId:did,text:'Для цього попиту обрано іншу пропозицію',createdAt:when
    });
  }
- const chosenNotificationOk=await putNotificationOnce(pid,'chosen_'+did,{
+ await putNotificationOnce(pid,'chosen_'+did,{
    type:'chosen',demandId:did,text:'Вашу пропозицію обрано',createdAt:when
  });
- if(!chosenNotificationOk)return false;
 
  const demandRef=db.ref('demands/'+did);
- const selectionSyncedAt=await firebaseAdjustedNow();
  const finalTx=await demandRef.transaction(current=>{
    if(auth?.currentUser?.uid!==actorId)return;
    if(!current||
       current.ownerId!==actorId||
       !['chosen','completed'].includes(current.status)||
       current.chosenProviderId!==pid)return;
-   return {...current,selectionSyncPending:null,selectionSyncError:null,selectionSyncedAt};
+   return {...current,selectionSyncPending:null,selectionSyncError:null,selectionSyncedAt:Date.now()};
  });
  return !!finalTx.committed;
 }
@@ -3242,31 +2991,31 @@ async function syncCompletedDemand(did,d){
  if(!fresh||fresh.ownerId!==actorId||fresh.status!=='completed')return false;
  if(fresh.chosenProviderId!==d.chosenProviderId)return false;
  d=fresh;
- const pid=d.chosenProviderId,when=Number(d.completedAt)||await firebaseAdjustedNow();
+ const pid=d.chosenProviderId,when=Number(d.completedAt)||Date.now();
 
- // Verify the selected provider really submitted a usable response, but do not
- // rewrite that provider-owned node. Completion is already authoritative on demand.
- const responseSnap=await db.ref('responses/'+did+'/'+pid).get();
- if(auth?.currentUser?.uid!==actorId)return false;
- const response=responseSnap.exists()?responseSnap.val():null;
- if(!response||
-    response.providerId!==pid||
-    !['sent','chosen','completed'].includes(response.status))return false;
+ const responseRef=db.ref('responses/'+did+'/'+pid);
+ const responseTx=await responseRef.transaction(current=>{
+   if(auth?.currentUser?.uid!==actorId)return;
+   if(!current)return;
+   if(current.providerId&&current.providerId!==pid)return;
+   if(current.status==='completed')return current;
+   if(current.status!=='chosen')return;
+   return {...current,status:'completed',completedAt:when};
+ });
+ if(!responseTx.committed)return false;
 
- const completedNotificationOk=await putNotificationOnce(pid,'completed_'+did,{
+ await putNotificationOnce(pid,'completed_'+did,{
    type:'completed',demandId:did,text:'Замовлення завершено',createdAt:when
  });
- if(!completedNotificationOk)return false;
 
  const demandRef=db.ref('demands/'+did);
- const completionSyncedAt=await firebaseAdjustedNow();
  const finalTx=await demandRef.transaction(current=>{
    if(auth?.currentUser?.uid!==actorId)return;
    if(!current||
       current.ownerId!==actorId||
       current.status!=='completed'||
       current.chosenProviderId!==pid)return;
-   return {...current,completionSyncPending:null,completionSyncError:null,completionSyncedAt};
+   return {...current,completionSyncPending:null,completionSyncError:null,completionSyncedAt:Date.now()};
  });
  return !!finalTx.committed;
 }
@@ -3303,11 +3052,11 @@ async function repairDemandSync(did,d){
        let accepted=!!r;
        if(!accepted){
          const rs=await db.ref('ratings/'+providerId+'/ratedDemands/'+did).get();
-         accepted=ratingMarkerMatches(rs.val(),n,actorId);
+         accepted=rs.val()===true;
        }
        if(accepted){
          const demandRef=db.ref('demands/'+did);
-         const ratedAt=await firebaseAdjustedNow();
+         const ratedAt=Date.now();
          const finalTx=await demandRef.transaction(current=>{
            if(auth?.currentUser?.uid!==actorId)return;
            if(!current||
@@ -3320,38 +3069,14 @@ async function repairDemandSync(did,d){
               current.providerRating)return;
            return {...current,providerRating:n,ratedAt,ratingSubmitPending:null,pendingProviderRating:null};
          });
-         if(!finalTx.committed){
-           const latestFinal=(await demandRef.get()).val();
-           const alreadyFinal=
-             !!latestFinal&&
-             latestFinal.ownerId===actorId&&
-             latestFinal.status==='completed'&&
-             latestFinal.chosenProviderId===providerId&&
-             Number(latestFinal.providerRating)===n&&
-             Number(latestFinal.ratedAt)>0&&
-             latestFinal.ratingSubmitPending!==true&&
-             latestFinal.pendingProviderRating==null;
-           if(!alreadyFinal)ok=false;
-         }
+         if(!finalTx.committed)ok=false;
        }else ok=false;
      }else ok=false;
    }catch(e){ok=false;console.warn('rating submission repair failed',did,e)}
  }
- // The rating-submission repair above can create or clear ratingSyncPending.
- // Do not decide from the stale demand snapshot that entered this function.
- // Re-read the exact demand before deciding whether aggregate/profile repair remains.
- let ratingRepairState=d;
- try{
-   const latestRatingStateSnap=await db.ref('demands/'+did).get();
-   if(auth?.currentUser?.uid!==actorId)return false;
-   if(latestRatingStateSnap.exists())ratingRepairState=latestRatingStateSnap.val();
- }catch(e){
-   ok=false;
-   console.warn('rating repair state refresh failed',did,e);
- }
- if(ratingRepairState?.ratingSyncPending&&ratingRepairState.status==='completed'){
+ if(d.ratingSyncPending&&d.status==='completed'){
    try{
-     const repaired=await syncProviderRatingProfile(did,ratingRepairState);
+     const repaired=await syncProviderRatingProfile(did,d);
      if(!repaired)ok=false;
    }catch(e){ok=false;console.warn('rating repair failed',did,e)}
  }
@@ -3364,49 +3089,37 @@ async function chooseResponse(did,pid){
  if(!actorId||auth?.currentUser?.uid!==actorId)return alert('Активний акаунт змінився. Вибір зупинено.');
  const ref=db.ref('demands/'+did);
  try{
-   const responseRef=db.ref('responses/'+did+'/'+pid);
-   const rs=await responseRef.get();
-   let chosen=rs.val();
+   const rs=await db.ref('responses/'+did+'/'+pid).get(),chosen=rs.val();
    if(!chosen||chosen.providerId!==pid||chosen.status!=='sent')return alert('Ця пропозиція вже недоступна.');
-   const initiallySeenResponseSignature=responseSelectionSignature(chosen);
 
+   let currentProviderRating=numOrNull(chosen.rating),currentProviderRatingCount=Number(chosen.ratingCount||0);
+   let currentProviderUniqueRaters=Number.isFinite(Number(chosen.ratingUniqueRaters))?Number(chosen.ratingUniqueRaters):null;
    let currentProviderProfile=null;
    try{
-     const ps=await db.ref('publicProfiles/'+pid).get();
+     const ps=await db.ref('users/'+pid).get();
      currentProviderProfile=ps.exists()?ps.val():null;
    }catch(e){
      console.warn('chosen provider live profile read failed',pid,e);
      return alert('Не вдалося перевірити актуальний стан виконавця. Вибір зупинено.');
    }
-   if(!publicProfileActive(currentProviderProfile)){
+   if(!currentProviderProfile||isSecurityBlocked(currentProviderProfile)||!profileComplete(currentProviderProfile)){
      return alert('Цей виконавець зараз недоступний для нового вибору.');
    }
-   // The response may change while profile/rating checks are running.
-   // Re-read it immediately before selection and refuse a silent change of
-   // status or commercial terms that the customer did not actually choose.
-   const freshResponseSnap=await responseRef.get();
-   if(auth?.currentUser?.uid!==actorId)return alert('Активний акаунт змінився. Вибір зупинено.');
-   const freshChosen=freshResponseSnap.val();
-   if(!freshChosen||
-      freshChosen.providerId!==pid||
-      freshChosen.status!=='sent'||
-      responseSelectionSignature(freshChosen)!==initiallySeenResponseSignature){
-     return alert('Пропозиція змінилася або вже недоступна. Оновіть список і оберіть її заново.');
-   }
-   chosen=freshChosen;
+   const liveRating=numOrNull(currentProviderProfile?.rating),liveCount=Number(currentProviderProfile?.ratingCount||0),liveUnique=Number(currentProviderProfile?.ratingUniqueRaters);
+   if(liveRating!=null)currentProviderRating=liveRating;
+   if(Number.isFinite(liveCount)&&liveCount>=0)currentProviderRatingCount=liveCount;
+   if(Number.isFinite(liveUnique)&&liveUnique>=0)currentProviderUniqueRaters=liveUnique;
 
    const parsedChosenPrice=(chosen?.priceAmount!=null||chosen?.priceCurrency)
      ?{amount:numOrNull(chosen.priceAmount),currency:chosen.priceCurrency||null}
      :parsePrice(chosen.price);
-   const chosenAt=await firebaseAdjustedNow();
-   if(auth?.currentUser?.uid!==actorId)return alert('Активний акаунт змінився. Вибір зупинено.');
-   const selection={
+   const chosenAt=Date.now(),selection={
      providerId:pid,text:chosen.text||'',price:chosen.price||'',
      priceAmount:parsedChosenPrice.amount,priceCurrency:parsedChosenPrice.currency,
      minutes:numOrNull(chosen.minutes??chosen.timeMinutes??chosen.deliveryMinutes),
-     // Persist only facts that Rules can independently bind to the selected
-     // response. Live rating/verification stays derived from trusted sources.
-     providerCity:chosen.providerCity||'',providerCountry:chosen.providerCountry||''
+     rating:currentProviderRating,ratingCount:currentProviderRatingCount,ratingUniqueRaters:currentProviderUniqueRaters,
+     emailVerified:currentProviderProfile.emailVerified===true,providerVerified:currentProviderProfile.verified===true,
+     providerCity:chosen.providerCity||currentProviderProfile.city||'',providerCountry:chosen.providerCountry||currentProviderProfile.country||''
    };
 
    // Compare-and-set: only the owner can move an OPEN demand to CHOSEN.
@@ -3421,7 +3134,7 @@ async function chooseResponse(did,pid){
    try{
      await syncChosenDemand(did,tx.snapshot.val());
    }catch(e){
-     const pendingAt=await firebaseAdjustedNow(),errorText=String(e?.message||e).slice(0,500);
+     const pendingAt=Date.now(),errorText=String(e?.message||e);
      await ref.transaction(current=>{
        if(auth?.currentUser?.uid!==actorId)return;
        if(!current||
@@ -3431,84 +3144,111 @@ async function chooseResponse(did,pid){
        return {...current,selectionSyncPending:true,selectionSyncError:errorText,selectionSyncAt:pendingAt};
      }).catch(()=>{});
      alert('Виконавця обрано, але синхронізація відповідей потребує повтору.');
-     try{await loadMyDemand()}catch(refreshError){
-       console.warn('chosen demand refresh failed after committed selection',did,refreshError);
-     }
-     return;
+     return loadMyDemand();
    }
 
    alert('Виконавця обрано.');
-   try{await loadMyDemand()}catch(refreshError){
-     // The selection transaction already committed. A UI refresh failure must
-     // not be reported as if the provider was not chosen.
-     console.warn('chosen demand refresh failed after committed selection',did,refreshError);
-   }
+   await loadMyDemand();
  }catch(e){
    console.warn('choose response failed',did,pid,e);
    alert('Не вдалося обрати виконавця: '+String(e?.message||e));
  }
 }
-function ratingMarkerMatches(marker,rating){
- const n=Number(rating);
- if(!Number.isFinite(n)||n<1||n>5)return false;
- if(!marker||typeof marker!=='object')return false;
- return Number(marker.rating)===n;
-}
+async function writeFreshProviderRatingProfile(providerId){
+ if(!db||!providerId)return false;
 
-function ratingAggregateFromMarkers(markers){
- let sum=0,count=0;
- if(markers&&typeof markers==='object'){
-   Object.values(markers).forEach(marker=>{
-     // Public rating markers intentionally contain only the score. The server
-     // proves the rater from the completed demand when the marker is created,
-     // so readers never need another customer's UID or rating timestamp.
-     if(!marker||typeof marker!=='object')return;
-     const rating=Number(marker.rating);
-     if(!Number.isFinite(rating)||rating<1||rating>5)return;
-     sum+=rating;count++;
-   });
+ // Always derive the public profile rating from the latest aggregate snapshot.
+ // Never write a cached transaction result: another customer may have rated the
+ // same provider in the meantime.
+ const rs=await db.ref('ratings/'+providerId).get();
+ const value=rs.exists()?rs.val():null;
+ const sum=Number(value?.sum),count=Number(value?.count),average=Number(value?.average);
+ if(!Number.isFinite(sum)||!Number.isFinite(count)||count<0||!Number.isInteger(count))return false;
+ if(!Number.isFinite(average)||average<0||average>5)return false;
+ if(count===0){
+   if(sum!==0||average!==0)return false;
+ }else{
+   const derived=sum/count;
+   if(!Number.isFinite(derived)||Math.abs(derived-average)>0.000001)return false;
  }
+ const uniqueRaw=value?.uniqueRaterCount;
+ const unique=uniqueRaw==null?null:Number(uniqueRaw);
+ if(unique!=null&&(!Number.isFinite(unique)||unique<0||!Number.isInteger(unique)||unique>count))return false;
+
+ const ratingSyncActorId=uid();
+ if(!ratingSyncActorId||auth?.currentUser?.uid!==ratingSyncActorId)return false;
+ const syncedAt=Date.now();
+ const profileRef=db.ref('users/'+providerId);
+ const tx=await profileRef.transaction(current=>{
+   if(auth?.currentUser?.uid!==ratingSyncActorId)return;
+   if(!current||!profileComplete(current)||isSecurityBlocked(current))return;
+   const existingCount=Number(current.ratingCount);
+   if(Number.isFinite(existingCount)&&existingCount>count)return;
+   return {
+     ...current,
+     rating:average,
+     ratingCount:count,
+     ratingUniqueRaters:unique,
+     ratingSyncedAt:syncedAt
+   };
+ });
+ if(!tx.committed)return false;
  return {
-   rating:count?sum/count:null,
-   ratingCount:count,
-   ratingUniqueRaters:null
+   synced:true,
+   count,
+   updatedAt:Number(value?.updatedAt)||0,
+   profileSyncedAt:syncedAt
  };
 }
 
-async function readProviderRatingAggregate(providerId){
- if(!db||!providerId)return {rating:null,ratingCount:0,ratingUniqueRaters:0};
- const snap=await db.ref('ratings/'+providerId+'/ratedDemands').get();
- return ratingAggregateFromMarkers(snap.exists()?snap.val():null);
+async function clearRatingProfileSyncPending(providerId,syncState){
+ if(!db||!providerId||!syncState?.synced)return false;
+ const expectedCount=Number(syncState.count),expectedUpdatedAt=Number(syncState.updatedAt)||0;
+ const ratingClearActorId=uid();
+ if(!ratingClearActorId||auth?.currentUser?.uid!==ratingClearActorId)return false;
+ const ref=db.ref('ratings/'+providerId);
+ const tx=await ref.transaction(current=>{
+   if(auth?.currentUser?.uid!==ratingClearActorId)return;
+   if(!current)return;
+   const currentCount=Number(current.count),currentUpdatedAt=Number(current.updatedAt)||0;
+   // Clear only the exact aggregate snapshot that was written to the profile.
+   // If a newer rating arrived meanwhile, leave its pending marker untouched.
+   if(current.profileSyncPending!==true||
+      currentCount!==expectedCount||
+      currentUpdatedAt!==expectedUpdatedAt)return;
+   return {
+     ...current,
+     profileSyncPending:null,
+     profileSyncError:null,
+     profileSyncedAt:Number(syncState.profileSyncedAt)||Date.now()
+   };
+ });
+ return !!tx.committed;
 }
 
-// Compatibility repair for demands created by older builds. New builds no longer
-// maintain a mutable provider aggregate/profile-sync state. If the immutable
-// rating marker exists and proves the exact owner/rating, clear only the old
-// demand-side pending flags.
 async function syncProviderRatingProfile(did,d){
  if(!db||!did||!d)return false;
  if(!await requireVerifiedAccount())return false;
  const actorId=uid();
  if(!actorId||auth?.currentUser?.uid!==actorId)return false;
  const ds=await db.ref('demands/'+did).get();
- if(auth?.currentUser?.uid!==actorId)return false;
- const fresh=ds.exists()?ds.val():null;
- if(!fresh||fresh.ownerId!==actorId||fresh.status!=='completed')return false;
- const providerId=fresh.ratingSyncProviderId||fresh.chosenProviderId;
- if(!providerId||providerId!==fresh.chosenProviderId)return false;
- const expectedRating=Number(fresh.pendingProviderRating??fresh.providerRating);
- const markerSnap=await db.ref('ratings/'+providerId+'/ratedDemands/'+did).get();
- if(auth?.currentUser?.uid!==actorId)return false;
- if(!ratingMarkerMatches(markerSnap.val(),expectedRating))return false;
+ const freshDemand=ds.exists()?ds.val():null;
+ if(!freshDemand||freshDemand.ownerId!==actorId||freshDemand.status!=='completed'||freshDemand.ratingSyncPending!==true)return false;
+ const providerId=freshDemand.ratingSyncProviderId||freshDemand.chosenProviderId;
+ if(!providerId||providerId!==freshDemand.chosenProviderId)return false;
+ d=freshDemand;
+ const profileSync=await writeFreshProviderRatingProfile(providerId);
+ if(!profileSync)return false;
 
- const syncedAt=await firebaseAdjustedNow();
- const ref=db.ref('demands/'+did);
- const tx=await ref.transaction(current=>{
+ const demandRef=db.ref('demands/'+did);
+ const syncedAt=Date.now();
+ const demandTx=await demandRef.transaction(current=>{
    if(auth?.currentUser?.uid!==actorId)return;
    if(!current||
       current.ownerId!==actorId||
       current.status!=='completed'||
-      current.chosenProviderId!==providerId)return;
+      current.chosenProviderId!==providerId||
+      current.ratingSyncPending!==true)return;
    return {
      ...current,
      ratingSyncPending:null,
@@ -3517,13 +3257,10 @@ async function syncProviderRatingProfile(did,d){
      ratingSyncedAt:syncedAt
    };
  });
- if(tx.committed)return true;
- const latest=(await ref.get()).val();
- return !!latest&&
-        latest.ownerId===actorId&&
-        latest.status==='completed'&&
-        latest.chosenProviderId===providerId&&
-        latest.ratingSyncPending!==true;
+ if(!demandTx.committed)return false;
+
+ await clearRatingProfileSyncPending(providerId,profileSync).catch(()=>{});
+ return true;
 }
 
 async function addProviderRating(providerId,rating,demandId,raterId=null){
@@ -3533,10 +3270,10 @@ async function addProviderRating(providerId,rating,demandId,raterId=null){
  const currentRater=uid();
  if(!currentRater||String(raterId||currentRater)!==String(currentRater))return null;
 
- // Only the owner of this exact completed demand may create its one immutable
- // rating marker. No customer rewrites another provider's aggregate/profile.
+ // Rating reputation may change only from the owner of this exact completed demand.
+ // The intended value must already be persisted on the demand, making direct/helper
+ // calls unable to invent an unrelated provider/rating pair.
  const ds=await db.ref('demands/'+demandId).get();
- if(auth?.currentUser?.uid!==currentRater)return null;
  const demand=ds.exists()?ds.val():null;
  if(!demand||
     demand.ownerId!==currentRater||
@@ -3545,30 +3282,77 @@ async function addProviderRating(providerId,rating,demandId,raterId=null){
     demand.ratingSubmitPending!==true||
     Number(demand.pendingProviderRating)!==n)return null;
 
- const ratedAt=await firebaseAdjustedNow();
- if(auth?.currentUser?.uid!==currentRater)return null;
- const markerRef=db.ref('ratings/'+providerId+'/ratedDemands/'+demandId);
- const tx=await markerRef.transaction(current=>{
+ const rr=db.ref('ratings/'+providerId);
+ const tx=await rr.transaction(v=>{
    if(auth?.currentUser?.uid!==currentRater)return;
-   if(current){
-     return ratingMarkerMatches(current,n)?current:undefined;
+   v=v||{sum:0,count:0,average:0};
+   const rated=v.ratedDemands||{};
+   if(demandId&&rated[demandId])return;
+
+   const raters=v.ratedBy||{};
+   if(raterId)raters[raterId]=true;
+
+   v.sum=(Number(v.sum)||0)+n;
+   v.count=(Number(v.count)||0)+1;
+   v.average=v.count?v.sum/v.count:0;
+   if(demandId){rated[demandId]=true;v.ratedDemands=rated}
+   if(raterId){
+     v.ratedBy=raters;
+     v.uniqueRaterCount=Object.keys(raters).length;
+   }else if(!Number.isFinite(Number(v.uniqueRaterCount))){
+     // Legacy rating entries may not identify the customer. Preserve them
+     // without inventing a false unique-customer count.
+     v.uniqueRaterCount=null;
    }
-   return {rating:n};
+   v.updatedAt=Date.now();
+   v.profileSyncPending=true;
+   v.profileSyncError=null;
+   return v;
  });
  if(!tx.committed)return null;
- const saved=tx.snapshot.val();
- if(!ratingMarkerMatches(saved,n))return null;
+ const value=tx.snapshot.val();
+ if(value?.average!=null){
+   try{
+     const profileSync=await writeFreshProviderRatingProfile(providerId);
+     if(!profileSync)throw Error('Не вдалося безпечно синхронізувати актуальний рейтинг виконавця.');
+     await clearRatingProfileSyncPending(providerId,profileSync);
 
- // Return a freshly derived display aggregate. It is read-only and can always
- // be recomputed from the immutable per-demand rating ledger.
- try{
-   return await readProviderRatingAggregate(providerId);
- }catch(e){
-   console.warn('rating aggregate read failed after marker commit',providerId,e);
-   // The marker is committed, but an aggregate read failure means the provider's
-   // total rating/count is unknown. Never pretend this one rating is the whole history.
-   return {rating:null,ratingCount:null,ratingUniqueRaters:null,markerCommitted:true};
+     const demandRef=db.ref('demands/'+demandId);
+     const syncedAt=Date.now();
+     await demandRef.transaction(current=>{
+       if(auth?.currentUser?.uid!==currentRater)return;
+       if(!current||
+          current.ownerId!==currentRater||
+          current.status!=='completed'||
+          current.chosenProviderId!==providerId)return;
+       return {
+         ...current,
+         ratingSyncPending:null,
+         ratingSyncProviderId:null,
+         ratingSyncError:null,
+         ratingSyncedAt:syncedAt
+       };
+     });
+   }catch(e){
+     const errorText=String(e?.message||e),ratingSyncAt=Date.now();
+     await db.ref('demands/'+demandId).transaction(current=>{
+       if(auth?.currentUser?.uid!==currentRater)return;
+       if(!current||
+          current.ownerId!==currentRater||
+          current.status!=='completed'||
+          current.chosenProviderId!==providerId)return;
+       return {
+         ...current,
+         ratingSyncPending:true,
+         ratingSyncProviderId:providerId,
+         ratingSyncError:errorText,
+         ratingSyncAt
+       };
+     }).catch(()=>{});
+     console.warn('rating profile sync failed',providerId,e);
+   }
  }
+ return value;
 }
 
 async function rateCompletedDemand(did,presetRating=null){
@@ -3596,7 +3380,7 @@ async function rateCompletedDemand(did,presetRating=null){
    // Reserve the rating intent atomically. The demand may change between the
    // earlier read and this write, so re-check owner/status/provider/rated state
    // inside the transaction itself.
-   const ratingSubmitAt=await firebaseAdjustedNow();
+   const ratingSubmitAt=Date.now();
    const intentTx=await ref.transaction(current=>{
      if(auth?.currentUser?.uid!==actorId)return;
      if(!current||
@@ -3623,13 +3407,13 @@ async function rateCompletedDemand(did,presetRating=null){
    let accepted=!!r;
    if(!accepted){
      const rs=await db.ref('ratings/'+reserved.chosenProviderId+'/ratedDemands/'+did).get();
-     accepted=ratingMarkerMatches(rs.val(),rating);
+     accepted=rs.val()===true;
    }
 
    if(accepted){
      // Finalize only if this exact pending rating intent is still present.
      // A stale callback must not overwrite a demand whose rating state changed.
-     const ratedAt=await firebaseAdjustedNow();
+     const ratedAt=Date.now();
      const finalTx=await ref.transaction(current=>{
        if(auth?.currentUser?.uid!==actorId)return;
        if(!current||
@@ -3649,20 +3433,8 @@ async function rateCompletedDemand(did,presetRating=null){
        };
      });
      if(!finalTx.committed){
-       const latestFinal=(await ref.get()).val();
-       const alreadyFinal=
-         !!latestFinal&&
-         latestFinal.ownerId===actorId&&
-         latestFinal.status==='completed'&&
-         latestFinal.chosenProviderId===reserved.chosenProviderId&&
-         Number(latestFinal.providerRating)===rating&&
-         Number(latestFinal.ratedAt)>0&&
-         latestFinal.ratingSubmitPending!==true&&
-         latestFinal.pendingProviderRating==null;
-       if(!alreadyFinal){
-         if(presetRating==null)alert('Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.');
-         return false;
-       }
+       if(presetRating==null)alert('Рейтинг у журналі підтверджено, але стан попиту вже змінився. Автоматичне перезаписування зупинено.');
+       return false;
      }
      if(presetRating==null)alert('Оцінку збережено.');
      await loadMyDemand();
@@ -3706,7 +3478,7 @@ async function completeDemand(did){
      }
    }
 
-   const providerId=before.chosenProviderId,completedAt=await firebaseAdjustedNow();
+   const providerId=before.chosenProviderId,completedAt=Date.now();
 
    // Only one completion can win, even if two devices/taps race.
    const tx=await ref.transaction(d=>{
@@ -3722,7 +3494,7 @@ async function completeDemand(did){
      await syncCompletedDemand(did,tx.snapshot.val());
    }catch(e){
      completionPending=true;
-     const pendingAt=await firebaseAdjustedNow(),errorText=String(e?.message||e).slice(0,500);
+     const pendingAt=Date.now(),errorText=String(e?.message||e);
      await ref.transaction(current=>{
        if(auth?.currentUser?.uid!==actorId)return;
        if(!current||
@@ -3741,11 +3513,7 @@ async function completeDemand(did){
    if(completionPending){
      alert('Замовлення завершено. Синхронізація відповіді виконавця буде повторена автоматично.');
    }
-   try{await loadMyDemand()}catch(refreshError){
-     // Completion is already committed. Keep UI refresh failure separate from
-     // the authoritative completion result.
-     console.warn('demand refresh failed after committed completion',did,refreshError);
-   }
+   await loadMyDemand();
  }catch(e){
    console.warn('complete demand failed',did,e);
    alert('Не вдалося завершити попит: '+String(e?.message||e));
@@ -3758,4 +3526,8 @@ window.addEventListener('load',()=>{
  setTimeout(()=>updateSourceHealth().catch(()=>{}),300);
 });
 </script>
-<div id="buildInfo" class="muted small">Версія: 20260908-choice-response-freshness-1 · один index.html</div></body></html>
+<div id="buildInfo" class="muted small">Версія: 20260908-captured-actor-integrity-1 · один index.html</div></body></html>
+       kernelTrace('answer','Повернено місце, отримане безпосередньо із зовнішнього джерела.','done');
+     kernelTrace('answer','Повернено зведену відповідь, джерело і рівень перевірки.','done');
+     kernelTrace('verify','Даних недостатньо для підтвердженої відповіді. Ядро зупинилося без вигадки.','failed');
+     kernelTrace('route','Сесію у Firebase не підтверджено. Пошук не виконувався і нічого не списано.','failed');
