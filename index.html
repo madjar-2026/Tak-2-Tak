@@ -143,8 +143,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 const T2T_BUILD={
- id:'20260911-map-routing-fixed-2',
- sequence:2026091102,
+ id:'20260911-map-query-checked-3',
+ sequence:2026091103,
  baseBytes:218607,
  created:'2026-09-11',
  oneFile:true
@@ -1444,6 +1444,8 @@ function looksLikeExactAddress(q){
 }
 function stripMapWords(q){
  return String(q||'')
+  .replace(/(?:^|[\s,]+)(?:будь\s+ласка|пожалуйста|please|proszę|bitte)(?=$|[\s,])[\s,]*/giu,' ')
+  .replace(/\s+/g,' ').trim()
   .replace(/(?:та\s+|і\s+)?(?:покажи|показати|знайди|знайти|відкрий|відкрити)?\s*(?:мені\s+)?(?:на\s+)?карт(?:і|у|а)/giu,' ')
   .replace(/(?:show|find|open)?\s*(?:me\s+)?(?:on\s+)?(?:the\s+)?map(?:\s+of)?/giu,' ')
   .replace(/^(?:де\s+знаходиться|де\s+є|адреса|location\s+of|where\s+is)\s+/iu,'')
@@ -1456,7 +1458,7 @@ async function fetchJSON(url,timeoutMs=9000){
  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeoutMs);
  try{
    const r=await fetch(url,{signal:c.signal,headers:{'Accept':'application/json'}});
-   if(!r.ok)throw Error('HTTP '+r.status);
+   if(!r.ok){const e=Error('HTTP '+r.status);e.httpStatus=r.status;throw e;}
    return await r.json();
  }finally{clearTimeout(t)}
 }
@@ -1539,7 +1541,9 @@ function exactResultMatchesRequestedPlace(q,g){
  return hits>=needed;
 }
 async function geocodeExact(place,timeoutMs=9000){
- const q=String(place||'').trim();
+ const raw=String(place||'').trim();
+ const variants=subjectVariants(raw);
+ const q=variants.length>1?variants[1]:raw;
  if(!q)return null;
  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&accept-language='+encodeURIComponent(wikiLang())+'&q='+encodeURIComponent(q);
  const a=await fetchJSON(url,timeoutMs);
@@ -1563,7 +1567,9 @@ function mapHTML(g){
  if(!g||g.lat==null||g.lon==null||g.lat===''||g.lon==='')return '';
  const lat=Number(g.lat),lon=Number(g.lon);
  if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return '';
- const d=.035,bbox=[Math.max(-180,lon-d),Math.max(-90,lat-d),Math.min(180,lon+d),Math.min(90,lat+d)].join(',');
+ const d=.035,b=Array.isArray(g.boundingbox)?g.boundingbox.map(Number):[];
+ const bounded=b.length===4&&b.every(Number.isFinite)&&b[0]<b[1]&&b[2]<b[3]&&b[0]>=-90&&b[1]<=90&&b[2]>=-180&&b[3]<=180;
+ const bbox=(bounded?[b[2],b[0],b[3],b[1]]:[Math.max(-180,lon-d),Math.max(-90,lat-d),Math.min(180,lon+d),Math.min(90,lat+d)]).join(',');
  return `<iframe title="Карта знайденого місця" class="map" src="https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat}%2C${lon}"></iframe><div class="small"><a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}" target="_blank" rel="noopener">Відкрити карту окремо</a> · Якщо карта порожня, відкрийте посилання.</div>`;
 }
 function exactPlaceHTML(g){
@@ -1838,7 +1844,7 @@ async function updateSourceHealth(force=false){
  const failed=Object.entries(t).filter(([,v])=>!v).map(([k])=>labels[k]||k);
  const el=document.getElementById('sourceHealth');
  if(el){
-   el.textContent=failed.length?`Джерела: ${ok}/${total} · недоступно: ${failed.join(', ')}`:`Джерела: ${ok}/${total} · усі доступні`;
+   el.textContent=failed.length?`Джерела: ${ok}/${total} · недоступно: ${failed.join(', ')}`:`Остання перевірка джерел: ${ok}/${total} успішно`;
    el.title=Object.entries(t).map(([k,v])=>`${labels[k]||k}: ${v?'OK':'FAIL'}`).join(' | ');
  }
  return {ok,total,failed,details:t,checkedAt:sourceHealthCache?.checkedAt||Date.now()};
@@ -1946,6 +1952,9 @@ function marketIntent(q){
 }
 function searchFailureMessage(err){
  const name=String(err?.name||''),msg=String(err?.message||'');
+ const http=Number(err?.httpStatus)||Number(msg.match(/^HTTP (\d{3})$/)?.[1]);
+ if(http)return {title:'Джерело повернуло помилку HTTP '+http,text:http===429?'Сервіс обмежив частоту запитів. Спробуйте пізніше.':http===403?'Сервіс відхилив доступ до запиту.':'Зовнішній сервіс не виконав запит.',status:'Помилка джерела: HTTP '+http};
+ if(name==='ReferenceError'||name==='TypeError'&&!/fetch|network|load/i.test(msg))return {title:'Помилка програми',text:'Код помилки: '+name+'. '+msg.slice(0,180),status:'Помилка програми'};
  if(/Немає перевіреного результату/i.test(msg))
    return {title:'Нічого підтвердженого не знайдено',text:'Підключені джерела не повернули результату для цього формулювання. Програма не вигадує відповідь.',status:'Результату немає'};
  if(name==='AbortError'||/timeout|aborted/i.test(msg))
@@ -2055,7 +2064,8 @@ async function runQuery(){
      return status('searchStatus','Не вдалося відкрити сесію. Пошук зупинено.','bad');
    }
    const f=searchFailureMessage(e);
-   $('results').innerHTML=`<div class="result"><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p></div>`;
+   if(needMap&&$('sourceHealth'))$('sourceHealth').textContent='Карта: поточний запит не виконано.';
+   $('results').innerHTML=`<div class="result"><h3>${esc(f.title)}</h3><p>${esc(f.text)}</p>${needMap?`<a target="_blank" rel="noopener" href="https://www.openstreetmap.org/search?query=${encodeURIComponent(stripMapWords(q))}">Спробувати пошук безпосередньо в OpenStreetMap</a>`:''}</div>`;
    status('searchStatus',f.status,'bad');
    kernelTrace('verify',f.text,'failed');
  }
@@ -2608,7 +2618,9 @@ function proximityScoreKm(km){
  return 1/(1+d/25);
 }
 async function safePlaceCoordinates(place){
- const q=String(place||'').trim();
+ const raw=String(place||'').trim();
+ const variants=subjectVariants(raw);
+ const q=variants.length>1?variants[1]:raw;
  if(!q)return null;
  try{
    const g=await geocode(q,2500);
@@ -3542,4 +3554,4 @@ window.addEventListener('load',()=>{
  setTimeout(()=>updateSourceHealth().catch(()=>{}),300);
 });
 </script>
-<div id="buildInfo" class="muted small">Версія: 20260911-map-routing-fixed-2 · один index.html</div></body></html>
+<div id="buildInfo" class="muted small">Версія: 20260911-map-query-checked-3 · один index.html</div></body></html>
