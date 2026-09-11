@@ -143,8 +143,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 const T2T_BUILD={
- id:'20260911-visible-kernel-prototype-1',
- sequence:2026091101,
+ id:'20260911-map-routing-fixed-2',
+ sequence:2026091102,
  baseBytes:218607,
  created:'2026-09-11',
  oneFile:true
@@ -154,13 +154,16 @@ function checkBuildRollback(){
  try{
    const key='t2t_latest_build';
    const previous=JSON.parse(localStorage.getItem(key)||'null');
-   if(previous&&Number(previous.sequence)>T2T_BUILD.sequence){
+   const previousDate=String(previous?.id||'').match(/^\d{8}/)?.[0]||'';
+   const currentDate=T2T_BUILD.id.slice(0,8);
+   const newer=previousDate>currentDate||(previousDate===currentDate&&String(previous.sequence).length===String(T2T_BUILD.sequence).length&&Number(previous.sequence)>T2T_BUILD.sequence);
+   if(newer){
      const msg='УВАГА: відкрито старішу копію Так-2-Так. Остання відома версія: '+previous.id+'. Поточна: '+T2T_BUILD.id+'. Не продовжуйте роботу з цим старим файлом.';
      console.error(msg);
      setTimeout(()=>alert(msg),50);
      return false;
    }
-   if(!previous||Number(previous.sequence)<T2T_BUILD.sequence){
+   if(!newer){
      localStorage.setItem(key,JSON.stringify(T2T_BUILD));
    }
  }catch(e){console.warn('build rollback guard failed',e)}
@@ -1442,8 +1445,10 @@ function looksLikeExactAddress(q){
 function stripMapWords(q){
  return String(q||'')
   .replace(/(?:та\s+|і\s+)?(?:покажи|показати|знайди|знайти|відкрий|відкрити)?\s*(?:мені\s+)?(?:на\s+)?карт(?:і|у|а)/giu,' ')
-  .replace(/(?:show|find|open)?\s*(?:me\s+)?(?:on\s+)?(?:the\s+)?map/giu,' ')
+  .replace(/(?:show|find|open)?\s*(?:me\s+)?(?:on\s+)?(?:the\s+)?map(?:\s+of)?/giu,' ')
   .replace(/^(?:де\s+знаходиться|де\s+є|адреса|location\s+of|where\s+is)\s+/iu,'')
+  .replace(/^\s*(?:місто|міста|село|селище|город|city(?:\s+of)?)\s+/iu,'')
+  .replace(/[?!.]+$/u,'')
   .replace(/\s+/g,' ').replace(/^[,;:\s]+|[,;:\s]+$/g,'').trim()
 }
 function wikiLang(){const l=$('lang').value;return ['uk','en','pl','de'].includes(l)?l:'uk'}
@@ -1555,8 +1560,11 @@ async function geocodeExact(place,timeoutMs=9000){
  })||null;
 }
 function mapHTML(g){
- if(!g)return '';const lat=Number(g.lat),lon=Number(g.lon),d=.035,bbox=[lon-d,lat-d,lon+d,lat+d].join(',');
- return `<iframe class="map" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat}%2C${lon}"></iframe>`;
+ if(!g||g.lat==null||g.lon==null||g.lat===''||g.lon==='')return '';
+ const lat=Number(g.lat),lon=Number(g.lon);
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return '';
+ const d=.035,bbox=[Math.max(-180,lon-d),Math.max(-90,lat-d),Math.min(180,lon+d),Math.min(90,lat+d)].join(',');
+ return `<iframe title="Карта знайденого місця" class="map" src="https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat}%2C${lon}"></iframe><div class="small"><a href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=14/${lat}/${lon}" target="_blank" rel="noopener">Відкрити карту окремо</a> · Якщо карта порожня, відкрийте посилання.</div>`;
 }
 function exactPlaceHTML(g){
  if(!g)return '';
@@ -1975,7 +1983,7 @@ async function runQuery(){
      const exactPlace=stripMapWords(q);
      const wantedNumber=requestedHouseNumber(exactPlace);
      const g=await geocodeExact(exactPlace);
-     if(g){
+     if(g&&mapHTML(g)){
        $('results').innerHTML=exactPlaceHTML(g);
        kernelTrace('answer','Повернено одну адресу, яку підтвердило зовнішнє джерело.','done');
        return status('searchStatus',wantedNumber?'1 конкретна адреса з підтвердженим номером будинку.':'1 конкретна адреса на карті.','good');
@@ -1988,15 +1996,16 @@ async function runQuery(){
      return status('searchStatus','Точну адресу не підтверджено.','bad');
    }
 
-   if(marketIntent(q) && !/столиц|capital|населення|population|валюта|currency/iu.test(q)){
+   if(!needMap && marketIntent(q) && !/столиц|capital|населення|population|валюта|currency/iu.test(q)){
      kernelTrace('answer','Запит визначено як реальну потребу. Його спрямовано у контур попиту та пропозиції.','done');
      $('results').innerHTML=`<div class="result"><h3>Це запит попиту / пропозиції</h3><p>Для реальних учасників Так-2-Так створіть попит або пропозицію. Система покаже до 3 реальних відповідей, якщо вони є.</p><div class="grid2"><button class="primary" onclick="show('demand')">Створити попит</button><button class="secondary" onclick="show('offer')">Створити пропозицію</button></div></div>`;
      return status('searchStatus','Запит направлено в ядро попиту/пропозиції.','good');
    }
-   const fact=await structuredFact(q,needMap);
+   const fact=(!needMap||parseRelation(q))?await structuredFact(q,needMap):null;
    if(fact){
      kernelTrace('verify','Факт знайдено у Wikidata; перевіряється пов’язане місце та карта.');
      const g=fact.g||(needMap&&fact.place?await geocode(fact.place):null);
+     if(needMap&&!mapHTML(g))throw Error('Координати для карти не підтверджено');
      $('results').innerHTML=`<div class="result"><h3>${esc(fact.title)}</h3><div class="answer">${esc(fact.text)}</div>${g?`<div class="small">${esc(g.display_name||fact.place)}</div>${mapHTML(g)}`:''}<div class="small">Джерело: ${fact.url?`<a href="${esc(fact.url)}" target="_blank" rel="noopener">${esc(fact.source||'Wikidata')}</a>`:esc(fact.source||'Wikidata')}</div></div>`;
      kernelTrace('answer','Повернено одну структуровану відповідь із посиланням на джерело.','done');
      return status('searchStatus','1 конкретна відповідь із Wikidata.','good');
@@ -2004,20 +2013,26 @@ async function runQuery(){
    const clean=stripMapWords(q);
    if(needMap){
      kernelTrace('verify','Пошук і перевірка місця через OpenStreetMap / Nominatim.');
-     const g=await geocode(clean);
-     if(g){
-       $('results').innerHTML=`<div class="result"><h3>${esc(g.display_name.split(',')[0])}</h3><div>${esc(g.display_name)}</div>${mapHTML(g)}</div>`;
-       return status('searchStatus','Місце знайдено.','good');
+     const g=await geocodeExact(clean);
+     if(g&&mapHTML(g)){
+       $('results').innerHTML=exactPlaceHTML(g);
+       kernelTrace('answer','Отримано координати від OpenStreetMap / Nominatim. Додано карту та посилання; завантаження карти залежить від зовнішнього сервісу.','done');
+       return status('searchStatus','Знайдено місце. Карту додано нижче.','good');
      }
+     $('results').innerHTML='<div class="result"><h3>Місце для карти не підтверджено</h3><p>Уточніть назву міста, область або країну. Джерело не повернуло відповідних координат.</p></div>';
+     kernelTrace('verify','Координати не підтверджено. Карту не показано.','failed');
+     return status('searchStatus','Карту не знайдено. Уточніть місце.','bad');
    }
    const researched=await researchAnswer(clean);
    if(researched){
      kernelTrace('verify','Відповідь звірено за Wikipedia та пов’язаною сутністю Wikidata.');
      $('results').innerHTML=`<div class="result"><h3>${esc(researched.title)}</h3><div class="answer">${esc(researched.text)}</div><div class="small">Джерело: ${researched.url?`<a href="${esc(researched.url)}" target="_blank" rel="noopener">${esc(researched.source||'відкрите джерело')}</a>`:esc(researched.source||'відкрите джерело')} · ${researched.corroboration?'сторінка пов’язана з Wikidata':'додаткового звіряння сутності немає'} · рівень перевірки ${researched.confidence}/8</div></div>`;
+     kernelTrace('answer','Повернено відповідь із джерелом і зазначеним рівнем перевірки.','done');
      return status('searchStatus','1 зведена відповідь із відкритого джерела.','good');
    }
    if(questionIntent(clean)!=='general'){
      $('results').innerHTML='<div class="result"><h3>Немає підтвердженої відповіді</h3><p>Підключене джерело не дало достатньо релевантних даних для конкретної відповіді.</p></div>';
+     kernelTrace('verify','Даних недостатньо для відповіді.','failed');
      return status('searchStatus','Не підтверджено — програма нічого не вигадує.','bad');
    }
    let pages=await wikiSearch(clean,exact?1:3);
@@ -2030,12 +2045,13 @@ async function runQuery(){
    const factual=/^(хто|що|де|коли|який|яка|яке|які|скільки|who|what|where|when|which|how many)(?:\s|$)/iu.test(clean);
    const take=(exact||factual)?pages.slice(0,1):pages.slice(0,3);
    $('results').innerHTML=take.map((p,i)=>`<div class="result"><span class="pill">${i+1}</span><h3>${esc(p.title)}</h3><p>${esc((p.extract||'').slice(0,1100))}</p></div>`).join('');
-   kernelTrace('answer',take.length===1?'Повернено одну конкретну відповідь.':'Повернено до трьох найрелевантніших підтверджених варіантів.','done');
+   kernelTrace('answer',take.length===1?'Повернено один результат пошуку Wikipedia.':'Повернено результати пошуку Wikipedia. Незалежну перевірку не виконано.','done');
    status('searchStatus',take.length===1?'1 конкретна відповідь.':`Знайдено ${take.length} найрелевантніші результати.`,'good');
  }catch(e){
    console.error(e);
    if(/Не вдалося відкрити сесію/i.test(String(e?.message||''))){
      $('results').innerHTML='<div class="result"><h3>Сесію не відкрито</h3><p>Пошук не запущено, тому що програмі не вдалося підтвердити сесію в Firebase. Нічого не списано і результат не вигадано.</p></div>';
+     kernelTrace('route','Сесію не підтверджено. Пошук зупинено.','failed');
      return status('searchStatus','Не вдалося відкрити сесію. Пошук зупинено.','bad');
    }
    const f=searchFailureMessage(e);
@@ -3526,8 +3542,4 @@ window.addEventListener('load',()=>{
  setTimeout(()=>updateSourceHealth().catch(()=>{}),300);
 });
 </script>
-<div id="buildInfo" class="muted small">Версія: 20260908-captured-actor-integrity-1 · один index.html</div></body></html>
-       kernelTrace('answer','Повернено місце, отримане безпосередньо із зовнішнього джерела.','done');
-     kernelTrace('answer','Повернено зведену відповідь, джерело і рівень перевірки.','done');
-     kernelTrace('verify','Даних недостатньо для підтвердженої відповіді. Ядро зупинилося без вигадки.','failed');
-     kernelTrace('route','Сесію у Firebase не підтверджено. Пошук не виконувався і нічого не списано.','failed');
+<div id="buildInfo" class="muted small">Версія: 20260911-map-routing-fixed-2 · один index.html</div></body></html>
