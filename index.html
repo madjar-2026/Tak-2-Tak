@@ -143,8 +143,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 <script>
 const T2T_BUILD={
- id:'20260911-session-history-fixed-4',
- sequence:2026091104,
+ id:'20260916-google-maps-router-5',
+ sequence:2026091605,
  baseBytes:218607,
  created:'2026-09-11',
  oneFile:true
@@ -1955,6 +1955,15 @@ function searchFailureMessage(err){
  return {title:'Не вдалося перевірити відповідь',text:'Під час перевірки джерела сталася помилка. Програма не підміняє її здогадкою.',status:'Помилка перевірки'};
 }
 
+// Google Maps URLs open Google's own map UI; they do not return Places data.
+// No Google API key or paid API is used for this navigation.
+function googleMapsSearchURL(query){
+ const place=stripMapWords(normalizeQuery(String(query||'')).q);
+ if(!place)return null;
+ const url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(place);
+ return url.length<=2048?url:null;
+}
+
 async function runQuery(){
  const raw=$('q').value.trim();if(!raw)return;
  $('results').innerHTML='';
@@ -1967,7 +1976,13 @@ async function runQuery(){
  }
  status('searchStatus','Шукаю і перевіряю…');
  const {q,exact}=normalizeQuery(raw),needMap=wantsMap(q);
- const route=exact&&(needMap||looksLikeExactAddress(q))?'точна адреса / карта'
+ const directGoogleMap=needMap&&!exact&&!parseRelation(q);
+ const googleURL=directGoogleMap?googleMapsSearchURL(q):null;
+ if(directGoogleMap&&!googleURL){
+   kernelTrace('understand','Вкажіть місце коротше: назву закладу, місто або адресу.','failed');
+   return status('searchStatus','Уточніть або скоротіть назву місця.','bad');
+ }
+ const route=directGoogleMap?'Google Maps':exact&&(needMap||looksLikeExactAddress(q))?'точна адреса / карта'
    :marketIntent(q)?'попит ↔ пропозиція'
    :parseRelation(q)?'структурований факт'
    :needMap?'місце / карта':'перевірена інформація';
@@ -1976,6 +1991,14 @@ async function runQuery(){
  try{
    await openSession('search');
    searchStage='source';
+   if(directGoogleMap){
+     $('results').innerHTML=`<div class="result"><h3>Google Maps</h3><p>Запит: ${esc(stripMapWords(q))}</p><p>Відкривається Google Maps. Результат пошуку покаже Google.</p><a class="primary" href="${esc(googleURL)}" rel="noopener">Відкрити Google Maps</a></div>`;
+     // Do not mark verification/answer as complete: external results are not read.
+     kernelTrace('route','Відкривається Google Maps із вашим запитом.');
+     status('searchStatus','Відкривається Google Maps…');
+     window.location.assign(googleURL);
+     return;
+   }
 
    // Fixed exact-query rule: starred place/address queries are resolved as
    // ONE concrete geographic result first. They must not be diluted into
@@ -3550,4 +3573,4 @@ window.addEventListener('load',()=>{
  setTimeout(()=>updateSourceHealth().catch(()=>{}),300);
 });
 </script>
-<div id="buildInfo" class="muted small">Версія: 20260911-session-history-fixed-4 · один index.html</div></body></html>
+<div id="buildInfo" class="muted small">Версія: 20260916-google-maps-router-5 · один index.html</div></body></html>
